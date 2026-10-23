@@ -1,90 +1,83 @@
-# Dependências do Chees mais mais
+﻿# Chees mais mais
 
-Verificação em 22/10/2026, no Windows x86_64 deste projeto.
+Roguelike tático de xadrez desenvolvido em **C com raylib**, como projeto em grupo.
 
-## Ambiente local verificado
+## Estado atual
 
-As dependências já estavam instaladas; não foi necessário instalar ou atualizar pacotes.
+O projeto está no início da implementação. Ainda não há uma versão jogável nem Makefile.
 
-| Componente | Versão / localização |
+| Arquivo | Responsabilidade / estado |
 | --- | --- |
-| GCC | 16.1.0; `C:/msys64/mingw64/bin/gcc.exe` |
-| GNU Make | 4.4.1; `mingw32-make.exe` |
-| raylib | 5.5; pkg-config reporta 5.5.0 |
-| pkg-config | Disponível; encontra cabeçalhos e bibliotecas da raylib |
-| Git | Disponível |
+| `src/main.c` | Ponto de entrada; ainda sem loop gráfico |
+| `src/tabuleiro.c` | Criação e expansão da matriz, em desenvolvimento |
+| `src/peca.c` | Estrutura e criação de peças, incompletas |
+| `src/pecaInimiga.c` e `.h` | Geração de inimigos por fase, posicionamento e distribuição de IDs de melhorias |
+| `src/melhorias.c` | Reservado para os aprimoramentos |
 
-Compilação do menu existente, a partir da raiz do projeto, no PowerShell:
+## Proposta do jogo
+
+O jogador começa com peão, torre, bispo, cavalo ou rei. A cada rodada, escolhe uma melhoria entre três cartas sorteadas para tipos de peça que possui. Melhorias aliadas afetam todas as unidades daquele tipo e não se repetem.
+
+Nas rodadas pares, uma opção permite recrutar outra peça, respeitando a capacidade de colocação. Após escolher a recompensa, o jogador posiciona as novas unidades em casas livres das duas primeiras fileiras do seu lado. A origem escolhida permanece registrada durante a run. O plano propõe movimento normal no combate e retorno dos sobreviventes às origens entre rodadas; essa interpretação ainda precisa ser confirmada pelo grupo.
+
+O inimigo começa com três peças. Da segunda rodada em diante, um sorteio aumenta a quantidade de unidades ou o orçamento de melhorias; a composição é sorteada novamente. A cada cinco rodadas, uma unidade vira um rei sem melhorias, que só pode ser capturado por último. Nessas rodadas, o jogador recebe cinco opções de cartas. Rainhas inimigas não recebem melhorias.
+
+Rainhas são obtidas por aprimoramento, cuja regra ainda será definida, e não entram no sorteio comum. Na geração atual, reis comuns ficam disponíveis a partir da fase 10 e podem receber melhorias. Capturar um rei comum não encerra a rodada; apenas o rei identificado como chefe tem a regra de ser capturado por último.
+
+### Tabuleiro expansível
+
+Dimensões na ordem **largura × altura**:
+
+| Rodadas | Tamanho |
+| --- | --- |
+| 1 a 5 | 5 × 5 |
+| 6 a 10 | 6 × 5 |
+| 11 a 15 | 7 × 5 |
+| 16 em diante | 8 × 5 |
+
+A expansão ocorre após vencer o chefe, para a próxima rodada. A altura permanece em cinco linhas. O código atual do tabuleiro ainda precisa ser ajustado a essas dimensões.
+
+### Interface e arte
+
+Paleta preto e branco com detalhes vermelhos. Tabuleiro no centro, aliados à esquerda, inimigos à direita, aliados capturados acima e inimigos capturados abaixo. Sprites e catálogo definitivo de melhorias serão produzidos pelo grupo.
+
+## Requisitos técnicos
+
+- C e raylib.
+- Matriz para representar o tabuleiro.
+- Listas encadeadas para peças e registros de capturas.
+- Arquivo para o recorde, com `podio.txt` como nome proposto.
+- Makefile para Windows, Linux e macOS, a implementar.
+
+## Dependências
+
+Compilador C, raylib e GNU Make para a futura automação da compilação. O ambiente Windows verificado anteriormente usa MSYS2/MinGW64, GCC e raylib 5.5.
+
+Consulte o [guia de dependências](docs/DEPENDENCIAS.md) para preparar as máquinas do grupo. Os comandos de menu nesse guia são históricos: o ponto de entrada atual não apresenta uma janela. Python e bibliotecas usadas para gerar o PDF não são dependências do jogo.
+
+## Compilar o ponto de entrada atual
+
+Na raiz do projeto, usando PowerShell com as ferramentas MinGW64 no PATH:
 
 ```powershell
-gcc -std=c99 -Wall -Wextra src/main.c -o tmp/pdfs/menu_verificado.exe -lraylib -lopengl32 -lgdi32 -lwinmm
+New-Item -ItemType Directory -Force build
+gcc -std=c99 -Wall -Wextra src/main.c -o build/chees-mais-mais.exe -lraylib -lopengl32 -lgdi32 -lwinmm
+./build/chees-mais-mais.exe
 ```
 
-Resultado: compilou sem avisos. Também foi compilado e executado um programa mínimo que chama `ColorToInt` e confirma o resultado esperado. Isso verifica cabeçalho, vínculo e carregamento da biblioteca; a janela gráfica não foi aberta. Os executáveis de verificação ficam em `tmp/pdfs/`.
+Atualmente o programa apenas encerra com sucesso. O comando compila somente `main.c`; os módulos incompletos serão integrados após correções e organização dos cabeçalhos. A compilação em Linux e macOS ainda precisa ser validada nas máquinas do grupo.
 
-## Windows: preparar outra máquina
+## Ordem de desenvolvimento
 
-Usar o terminal **MSYS2 MinGW64** com pacotes da mesma arquitetura. Em uma instalação de MSYS2 atualizada conforme sua documentação oficial:
+1. Fechar regras de turnos, vitória, derrota e transição entre rodadas.
+2. Ajustar matriz, largura ativa e gerenciamento de memória.
+3. Concluir estruturas e listas de peças, com posição atual e origem.
+4. Desenhar o tabuleiro, selecionar casas e colocar novas peças.
+5. Implementar movimentos, capturas e uma rodada com inimigos fixos.
+6. Adicionar turnos e IA; depois melhorias, cartas e recrutamento.
+7. Integrar geração inimiga, chefes, expansão e recorde.
+8. Finalizar arte, interface, balanceamento e compilação nos três sistemas.
 
-```sh
-pacman -S --needed mingw-w64-x86_64-gcc mingw-w64-x86_64-make mingw-w64-x86_64-raylib mingw-w64-x86_64-pkgconf
-gcc --version
-mingw32-make --version
-pkg-config --modversion raylib
-```
+O [plano em PDF](chees_mais_mais_plano_v03.pdf) detalha os passos e os critérios para avançar em cada etapa.
 
-O nome do Make no Windows é `mingw32-make`; comandos futuros do plano como `make run` poderão ser executados como `mingw32-make run`. O Makefile ainda será desenvolvido pelo grupo.
-
-No PowerShell, é preciso ter `C:/msys64/mingw64/bin` no PATH da sessão para localizar as ferramentas e a DLL. No terminal MinGW64, o ambiente já fornece esses caminhos. Ao distribuir o jogo, decidir entre vínculo estático ou distribuição das DLLs requeridas.
-
-## Linux: referência Ubuntu/Debian
-
-Instruções para os colegas executarem nas próprias máquinas; não foram executadas neste Windows. Instalar ferramentas e bibliotecas de desenvolvimento para a raylib:
-
-```sh
-sudo apt update
-sudo apt install build-essential git pkg-config libasound2-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libglu1-mesa-dev libxcursor-dev libxinerama-dev libwayland-dev libxkbcommon-dev
-```
-
-Se a distribuição não oferecer a versão de raylib combinada pelo grupo, uma opção para reproduzir a base local 5.5 é compilar a versão marcada no repositório oficial. Executar em uma pasta de ferramentas, fora dos fontes do jogo:
-
-```sh
-git clone --branch 5.5 --depth 1 https://github.com/raysan5/raylib.git raylib-5.5
-make -C raylib-5.5/src PLATFORM=PLATFORM_DESKTOP RAYLIB_LIBTYPE=STATIC
-sudo make -C raylib-5.5/src install RAYLIB_LIBTYPE=STATIC
-pkg-config --modversion raylib
-```
-
-Confirmar o diretório de instalação e os parâmetros para a distribuição usada. Uma instalação via pacote da distribuição pode ser mais conveniente. O Makefile do jogo deverá obter opções da raylib com `pkg-config`, incluindo dependências estáticas quando necessário.
-
-## macOS
-
-Também precisa ser validado em um Mac. Preparar Command Line Tools:
-
-```sh
-xcode-select --install
-```
-
-Com Homebrew já instalado:
-
-```sh
-brew install raylib pkg-config
-clang --version
-make --version
-pkg-config --modversion raylib
-```
-
-O Homebrew pode instalar uma versão diferente da 5.5. Combinar uma versão comum antes de integrar novas funcionalidades e testar a compatibilidade. Não usar bibliotecas Windows no Linux/macOS.
-
-## Escopo das dependências
-
-O jogo usa C, a biblioteca padrão e raylib. Python, ReportLab, Pillow, pypdf e pypdfium2 foram usados na produção do PDF e não são necessários para compilar ou jogar. O catálogo de melhorias, os sprites e o Makefile continuam sendo trabalho das etapas do plano.
-
-## Fontes oficiais
-
-- [MSYS2: gerenciamento de pacotes](https://www.msys2.org/docs/package-management/)
-- [raylib: GNU/Linux](https://github.com/raysan5/raylib/wiki/Working-on-GNU-Linux)
-- [raylib: macOS](https://github.com/raysan5/raylib/wiki/Working-on-macOS)
-- [raylib 5.5: Makefile da biblioteca](https://github.com/raysan5/raylib/blob/5.5/src/Makefile)
-
-Os comandos de instalação são para preparar máquinas que ainda não tenham as dependências. Este trabalho apenas verificou o ambiente Windows existente e compilou os testes descritos acima.
+A [documentação da geração inimiga](docs/INIMIGOS.md) explica os contadores, o sorteio, os IDs de melhorias e como chamar as funções. A integração dessa geração ao tabuleiro e ao combate ainda está pendente.
