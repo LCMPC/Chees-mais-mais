@@ -4,15 +4,16 @@
 #define MAX_MELHORIAS_INIMIGAS 10
 
 typedef struct PecaInimiga {
-    char inicial; /* P = peao, B = bispo, T = torre, C = cavalo, D = rainha, R = rei */
-    int posicaoInicial[2]; /* [linha][coluna], sem duplicar posicao atual */
-    int melhorias[MAX_MELHORIAS_INIMIGAS]; /* IDs 1 a 10; zero = vazio */
+    char inicial; // P = peao, B = bispo, T = torre, C = cavalo, D = rainha, R = rei
+    int posicaoInicial[2]; // [linha][coluna]*
+    int melhorias[MAX_MELHORIAS_INIMIGAS]; // IDs 1 a 10 / zero = vazio
     int quantidadeMelhorias;
-    int ehChefe; /* 1 apenas para o rei especial da bossfight; 0 nos demais */
+    int ehChefe; // se a peca é chefe 0 = nao / 1 =  sim
+    int jaMoveu;
     struct PecaInimiga *proximo;
 } PecaInimiga;
 
-/* Cria uma unidade sem melhorias e ainda sem posicionamento. */
+// Cria uma unidade sem melhorias e ainda sem posicionamento
 PecaInimiga *criarPecaInimiga(PecaInimiga **head, int fase);
 void liberarPecasInimigas(PecaInimiga **head);
 

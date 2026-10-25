@@ -9,10 +9,12 @@ O projeto está no início da implementação. Ainda não há uma versão jogáv
 | Arquivo | Responsabilidade / estado |
 | --- | --- |
 | `src/main.c` | Ponto de entrada; ainda sem loop gráfico |
-| `src/tabuleiro.c` | Criação e expansão da matriz, em desenvolvimento |
-| `src/peca.c` | Estrutura e criação de peças, incompletas |
-| `src/pecaInimiga.c` e `.h` | Geração de inimigos por fase, posicionamento e distribuição de IDs de melhorias |
-| `src/melhorias.c` | Reservado para os aprimoramentos |
+| `src/campo/tabuleiro.c` e `.h` | Matriz de casas com ponteiros; criação, expansão e liberação |
+| `src/pecas/peca.c` e `.h` | Estrutura, criação e lista de peças aliadas |
+| `src/pecas/pecaInimiga.c` e `.h` | Geração de inimigos por fase, posicionamento e distribuição de IDs de melhorias |
+| `src/campo/movimento.c` e `.h` | Validação geral de movimento, captura e toque do rei |
+| `src/pecas/unidades/*.c` | Regras de movimento de cada tipo de peça |
+| `src/pecas/melhorias.c` | Reservado para os aprimoramentos |
 
 ## Proposta do jogo
 
@@ -35,7 +37,7 @@ Dimensões na ordem **largura × altura**:
 | 11 a 15 | 7 × 5 |
 | 16 em diante | 8 × 5 |
 
-A expansão ocorre após vencer o chefe, para a próxima rodada. A altura permanece em cinco linhas. O código atual do tabuleiro ainda precisa ser ajustado a essas dimensões.
+A expansão ocorre após vencer o chefe, para a próxima rodada. A altura permanece em cinco linhas. O tabuleiro já permite crescer de cinco até oito colunas; a transição automática entre rodadas ainda será integrada.
 
 ### Interface e arte
 
@@ -55,23 +57,57 @@ Compilador C, raylib e GNU Make para a futura automação da compilação. O amb
 
 Consulte o [guia de dependências](docs/DEPENDENCIAS.md) para preparar as máquinas do grupo. Os comandos de menu nesse guia são históricos: o ponto de entrada atual não apresenta uma janela. Python e bibliotecas usadas para gerar o PDF não são dependências do jogo.
 
-## Compilar o ponto de entrada atual
+## Compilar o projeto atual
 
 Na raiz do projeto, usando PowerShell com as ferramentas MinGW64 no PATH:
 
 ```powershell
 New-Item -ItemType Directory -Force build
-gcc -std=c99 -Wall -Wextra src/main.c -o build/chees-mais-mais.exe -lraylib -lopengl32 -lgdi32 -lwinmm
+gcc -std=c99 -Wall -Wextra src/*.c src/campo/*.c src/pecas/*.c src/pecas/unidades/*.c -o build/chees-mais-mais.exe -lraylib -lopengl32 -lgdi32 -lwinmm
 ./build/chees-mais-mais.exe
 ```
 
-Atualmente o programa apenas encerra com sucesso. O comando compila somente `main.c`; os módulos incompletos serão integrados após correções e organização dos cabeçalhos. A compilação em Linux e macOS ainda precisa ser validada nas máquinas do grupo.
+Atualmente o programa apenas encerra com sucesso: os módulos compilam juntos, mas `main.c` ainda não os chama. A compilação em Linux e macOS ainda precisa ser validada nas máquinas do grupo.
+
+## Organização dos módulos
+
+```text
+src/
+  main.c
+  campo/
+    tabuleiro.c / tabuleiro.h
+    movimento.c / movimento.h
+  pecas/
+    melhorias.c
+    peca.c / peca.h
+    pecaInimiga.c / pecaInimiga.h
+    unidades/
+      peao.c, torre.c, bispo.c, cavalo.c, rei.c, rainha.c
+tests/
+  testar_movimento.c
+  testar_inimigos.c
+```
+
+`peca.h` e `pecaInimiga.h` definem as unidades e não dependem do tabuleiro. `tabuleiro.h` usa esses tipos para guardar os ponteiros nas casas. `movimento.h` apresenta as funções de validação e usa o tabuleiro. As regras individuais continuam nos arquivos de cada peça, com um único cabeçalho de movimentos.
+
+Incluir cabeçalhos `.h`, nunca arquivos `.c`. Os caminhos dos includes são relativos ao arquivo que está incluindo: em `pecas/unidades/`, `../../campo/movimento.h` sobe duas pastas até `src/` e entra em `campo/`.
+
+## Verificações do motor
+
+Na raiz, depois de criar a pasta `build`, compilar e executar os testes sem abrir a interface:
+
+```powershell
+gcc -std=c99 -Wall -Wextra -Werror -pedantic src/campo/movimento.c src/campo/tabuleiro.c src/pecas/unidades/*.c tests/testar_movimento.c -o build/testar_movimento.exe
+./build/testar_movimento.exe
+gcc -std=c99 -Wall -Wextra -Werror -pedantic src/pecas/pecaInimiga.c tests/testar_inimigos.c -o build/testar_inimigos.exe
+./build/testar_inimigos.exe
+```
 
 ## Ordem de desenvolvimento
 
 1. Fechar regras de turnos, vitória, derrota e transição entre rodadas.
 2. Ajustar matriz, largura ativa e gerenciamento de memória.
-3. Concluir estruturas e listas de peças, com posição atual e origem.
+3. Integrar listas de peças e origens; a posição atual fica na matriz de ponteiros.
 4. Desenhar o tabuleiro, selecionar casas e colocar novas peças.
 5. Implementar movimentos, capturas e uma rodada com inimigos fixos.
 6. Adicionar turnos e IA; depois melhorias, cartas e recrutamento.

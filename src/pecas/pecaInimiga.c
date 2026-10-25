@@ -18,6 +18,7 @@ PecaInimiga *criarPecaInimiga(PecaInimiga ** head, int fase) {
     nova->posicaoInicial[1] = -1;
     nova->quantidadeMelhorias = 0;
     nova->ehChefe = 0;
+    nova->jaMoveu = 0;
     for (int i = 0; i < MAX_MELHORIAS_INIMIGAS; i++) {
         nova->melhorias[i] = 0;
     }
