@@ -4,11 +4,13 @@ Roguelike tático de xadrez desenvolvido em **C com raylib**, como projeto em gr
 
 ## Estado atual
 
-O projeto está no início da implementação. Ainda não há uma versão jogável nem Makefile.
+O projeto está no início da implementação. Há um protótipo visual navegável em raylib, ainda sem combate funcional.
 
 | Arquivo | Responsabilidade / estado |
 | --- | --- |
-| `src/main.c` | Ponto de entrada; ainda sem loop gráfico |
+| `src/main.c` | Janela raylib e loop das quatro telas |
+| `src/ui/screens.c` e `.h` | Menu, escolha inicial, prévia de jogo e derrota; navegação por mouse e teclado |
+| `src/ui/theme.c` e `.h` | Paleta, componentes e peças desenhadas quando sprites faltam |
 | `src/campo/tabuleiro.c` e `.h` | Matriz de casas com ponteiros; criação, expansão e liberação |
 | `src/pecas/peca.c` e `.h` | Estrutura, criação e lista de peças aliadas |
 | `src/pecas/pecaInimiga.c` e `.h` | Geração de inimigos por fase, posicionamento e distribuição de IDs de melhorias |
@@ -49,31 +51,39 @@ Paleta preto e branco com detalhes vermelhos. Tabuleiro no centro, aliados à es
 - Matriz para representar o tabuleiro.
 - Listas encadeadas para peças e registros de capturas.
 - Arquivo para o recorde, com `podio.txt` como nome proposto.
-- Makefile para Windows, Linux e macOS, a implementar.
+- Makefile para Windows, Linux e macOS.
 
 ## Dependências
 
-Compilador C, raylib e GNU Make para a futura automação da compilação. O ambiente Windows verificado anteriormente usa MSYS2/MinGW64, GCC e raylib 5.5.
+Compilador C, raylib, GNU Make e pkg-config (Linux/macOS). O ambiente Windows verificado anteriormente usa MSYS2/MinGW64, GCC e raylib 5.5. O protótipo visual compilou neste macOS com raylib 6.2.0.
 
-Consulte o [guia de dependências](docs/DEPENDENCIAS.md) para preparar as máquinas do grupo. Os comandos de menu nesse guia são históricos: o ponto de entrada atual não apresenta uma janela. Python e bibliotecas usadas para gerar o PDF não são dependências do jogo.
+Consulte o [guia de dependências](docs/DEPENDENCIAS.md) para preparar as máquinas do grupo. Python e bibliotecas usadas para gerar o PDF não são dependências do jogo.
 
-## Compilar o projeto atual
+## Executar o protótipo visual
 
-Na raiz do projeto, usando PowerShell com as ferramentas MinGW64 no PATH:
+Na raiz do projeto:
 
-```powershell
-New-Item -ItemType Directory -Force build
-gcc -std=c99 -Wall -Wextra src/*.c src/campo/*.c src/pecas/*.c src/pecas/unidades/*.c -o build/chees-mais-mais.exe -lraylib -lopengl32 -lgdi32 -lwinmm
-./build/chees-mais-mais.exe
+```sh
+make
+make run
 ```
 
-Atualmente o programa apenas encerra com sucesso: os módulos compilam juntos, mas `main.c` ainda não os chama. A compilação em Linux e macOS ainda precisa ser validada nas máquinas do grupo.
+No Windows com MSYS2/MinGW64, use `mingw32-make` no lugar de `make`. `make clean` limpa a pasta `build`. Execute a partir da raiz para que os recursos opcionais sejam encontrados.
+
+O fluxo atual é **Início → Seleção de peça → Jogo → Derrota → Início**. Use mouse, Enter e as setas na seleção; na prévia de jogo, clique em **Simular derrota** ou pressione D. Escape retorna ao início a partir da seleção ou do jogo. Rodada, pódio, peças laterais e capturas são dados visuais de demonstração. Combate e persistência ainda não foram conectados.
+
+Para incluir arte depois, coloque uma fonte em `assets/fonts/ui.ttf` e sprites PNG em `assets/pieces/white_pawn.png`, `black_pawn.png` etc. Os tipos aceitos são `pawn`, `rook`, `bishop`, `knight`, `king` e `queen`, com prefixo `white_` ou `black_`. Se um arquivo faltar, a peça é desenhada por código; a fonte padrão da raylib também serve como reserva.
+
+A interface foi compilada e aberta neste macOS. Linux e Windows ainda precisam ser conferidos nas máquinas do grupo.
 
 ## Organização dos módulos
 
 ```text
 src/
   main.c
+  ui/
+    screens.c / screens.h
+    theme.c / theme.h
   campo/
     tabuleiro.c / tabuleiro.h
     movimento.c / movimento.h
@@ -114,6 +124,6 @@ gcc -std=c99 -Wall -Wextra -Werror -pedantic src/pecas/pecaInimiga.c tests/testa
 7. Integrar geração inimiga, chefes, expansão e recorde.
 8. Finalizar arte, interface, balanceamento e compilação nos três sistemas.
 
-O [plano em PDF](chees_mais_mais_plano_v03.pdf) detalha os passos e os critérios para avançar em cada etapa.
+O [plano atualizado em PDF](chees_mais_mais_plano_v04.pdf) preserva as 13 páginas anteriores e acrescenta as decisões sobre as quatro telas e os recursos de reserva.
 
 A [documentação da geração inimiga](docs/INIMIGOS.md) explica os contadores, o sorteio, os IDs de melhorias e como chamar as funções. A integração dessa geração ao tabuleiro e ao combate ainda está pendente.
