@@ -168,6 +168,118 @@ static void draw_captures(float x,float y,float width,const char *label,bool whi
     for(int i=0;i<3;++i) UiDrawPiece(i,white,rect(x+7+i*40,y+25,31,31),.75f);
 }
 
+static int demo_tabuleiro[5][5];
+static bool demo_tabuleiro_inicializado = false;
+static int demo_ultima_peca = -1;
+static bool demo_arrastando = false;
+static int demo_linha_origem = -1;
+static int demo_coluna_origem = -1;
+
+static void inicializar_demo_tabuleiro(int peca_selecionada) {
+    for (int linha = 0; linha < 5; ++linha) {
+        for (int coluna = 0; coluna < 5; ++coluna) {
+            demo_tabuleiro[linha][coluna] = -1;
+        }
+    }
+
+    demo_tabuleiro[4][2] = peca_selecionada;
+    demo_tabuleiro[0][1] = UI_ROOK;
+    demo_tabuleiro[0][3] = UI_KNIGHT;
+    demo_tabuleiro[1][2] = UI_PAWN;
+    demo_tabuleiro_inicializado = true;
+    demo_ultima_peca = peca_selecionada;
+}
+
+static int peca_demo_na_casa(int linha, int coluna, int peca_selecionada) {
+    if (!demo_tabuleiro_inicializado || demo_ultima_peca != peca_selecionada) {
+        inicializar_demo_tabuleiro(peca_selecionada);
+    }
+    if (linha < 0 || linha >= 5 || coluna < 0 || coluna >= 5) return -1;
+    return demo_tabuleiro[linha][coluna];
+}
+
+static bool movimento_valido_demo(int tipo, int linha_origem, int coluna_origem,
+                                int linha_destino, int coluna_destino,
+                                int peca_selecionada) {
+    if (linha_destino < 0 || linha_destino >= 5 || coluna_destino < 0 || coluna_destino >= 5) return false;
+    if (linha_origem == linha_destino && coluna_origem == coluna_destino) return false;
+
+    int ocupante = peca_demo_na_casa(linha_destino, coluna_destino, peca_selecionada);
+    if (ocupante == tipo) return false;
+
+    switch (tipo) {
+        case UI_PAWN: {
+            int direcao = -1;
+            int deslocamento_linha = linha_destino - linha_origem;
+            int deslocamento_coluna = abs(coluna_destino - coluna_origem);
+
+            if (deslocamento_coluna == 0) {
+                if (deslocamento_linha == direcao && ocupante < 0) return true;
+                if (linha_origem == 4 && deslocamento_linha == -2 && ocupante < 0 &&
+                    peca_demo_na_casa(linha_origem + direcao, coluna_origem, peca_selecionada) < 0) {
+                    return true;
+                }
+                return false;
+            }
+
+            if (deslocamento_coluna == 1 && deslocamento_linha == direcao && ocupante >= 0) return true;
+            return false;
+        }
+        case UI_ROOK: {
+            if ((linha_origem != linha_destino && coluna_origem != coluna_destino) ||
+                (linha_origem == linha_destino && coluna_origem == coluna_destino)) {
+                return false;
+            }
+
+            int passo_linha = (linha_destino > linha_origem) - (linha_destino < linha_origem);
+            int passo_coluna = (coluna_destino > coluna_origem) - (coluna_destino < coluna_origem);
+            int linha = linha_origem + passo_linha;
+            int coluna = coluna_origem + passo_coluna;
+            while (linha != linha_destino || coluna != coluna_destino) {
+                if (peca_demo_na_casa(linha, coluna, peca_selecionada) >= 0) return false;
+                linha += passo_linha;
+                coluna += passo_coluna;
+            }
+            return true;
+        }
+        case UI_BISHOP: {
+            if (abs(linha_destino - linha_origem) != abs(coluna_destino - coluna_origem)) return false;
+            int passo_linha = (linha_destino > linha_origem) ? 1 : -1;
+            int passo_coluna = (coluna_destino > coluna_origem) ? 1 : -1;
+            int linha = linha_origem + passo_linha;
+            int coluna = coluna_origem + passo_coluna;
+            while (linha != linha_destino || coluna != coluna_destino) {
+                if (peca_demo_na_casa(linha, coluna, peca_selecionada) >= 0) return false;
+                linha += passo_linha;
+                coluna += passo_coluna;
+            }
+            return true;
+        }
+        default:
+            return false;
+    }
+}
+
+static void desenhar_movimentos_possiveis(const GameState *state, float bx, float by, float tile) {
+    if (!state || !demo_arrastando) return;
+
+    int linha = demo_linha_origem;
+    int coluna = demo_coluna_origem;
+    if (linha < 0 || coluna < 0) return;
+
+    for (int r = 0; r < 5; ++r) {
+        for (int c = 0; c < 5; ++c) {
+            if (!movimento_valido_demo(state->selected_piece, linha, coluna, r, c, state->selected_piece)) continue;
+            Rectangle quadrado = rect(bx + c * tile, by + r * tile, tile, tile);
+            DrawRectangleRec(quadrado, (Color){110, 170, 255, 120});
+            DrawRectangleLinesEx(quadrado, 2, (Color){150, 210, 255, 220});
+        }
+    }
+
+    Rectangle casa_ativa = rect(bx + coluna * tile, by + linha * tile, tile, tile);
+    DrawRectangleLinesEx(casa_ativa, 3, (Color){120, 200, 255, 230});
+}
+
 static void draw_game(const GameState *state) {
     float w=(float)GetScreenWidth(), h=(float)GetScreenHeight();
     frame_title("RODADA 01");
@@ -177,6 +289,41 @@ static void draw_game(const GameState *state) {
     float sidew=minimum(w*.20f,250);
     float sx=minimum(38,bx-sidew-22);
     if(sx<12) sx=12;
+
+    if (!demo_tabuleiro_inicializado || demo_ultima_peca != state->selected_piece) {
+        inicializar_demo_tabuleiro(state->selected_piece);
+    }
+
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        Vector2 mouse = GetMousePosition();
+        if (mouse.x >= bx && mouse.x <= bx + board && mouse.y >= by && mouse.y <= by + board) {
+            int coluna = (int)((mouse.x - bx) / tile);
+            int linha = (int)((mouse.y - by) / tile);
+            if (peca_demo_na_casa(linha, coluna, state->selected_piece) == state->selected_piece) {
+                demo_arrastando = true;
+                demo_linha_origem = linha;
+                demo_coluna_origem = coluna;
+            }
+        }
+    }
+
+    if (demo_arrastando && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+        Vector2 mouse = GetMousePosition();
+        if (mouse.x >= bx && mouse.x <= bx + board && mouse.y >= by && mouse.y <= by + board) {
+            int coluna_destino = (int)((mouse.x - bx) / tile);
+            int linha_destino = (int)((mouse.y - by) / tile);
+            if (movimento_valido_demo(state->selected_piece, demo_linha_origem, demo_coluna_origem,
+                                      linha_destino, coluna_destino, state->selected_piece)) {
+                demo_tabuleiro[demo_linha_origem][demo_coluna_origem] = -1;
+                demo_tabuleiro[linha_destino][coluna_destino] = state->selected_piece;
+            }
+        }
+
+        demo_arrastando = false;
+        demo_linha_origem = -1;
+        demo_coluna_origem = -1;
+    }
+
     draw_side(rect(sx,by,sidew,board),"ALIADOS",false,state->selected_piece);
     draw_side(rect(w-sx-sidew,by,sidew,board),"INIMIGOS",true,UI_PAWN);
     draw_captures(bx,by-82,board,"ALIADOS CAPTURADOS PELO INIMIGO",true);
@@ -185,10 +332,16 @@ static void draw_game(const GameState *state) {
         Rectangle sq=rect(bx+col*tile,by+row*tile,tile,tile);
         Color base=((row+col)%2==0)?(Color){235,234,231,255}:(Color){45,45,49,255};
         DrawRectangleRec(sq,base);
-        if(row==4&&col==2) UiDrawPiece(state->selected_piece,true,rect(sq.x+tile*.08f,sq.y+tile*.08f,tile*.84f,tile*.84f),1);
-        if(row==0&&(col==1||col==3)) UiDrawPiece(col==1?UI_ROOK:UI_KNIGHT,false,rect(sq.x+tile*.08f,sq.y+tile*.08f,tile*.84f,tile*.84f),1);
-        if(row==1&&col==2) UiDrawPiece(UI_PAWN,false,rect(sq.x+tile*.08f,sq.y+tile*.08f,tile*.84f,tile*.84f),1);
+        int peca = peca_demo_na_casa(row, col, state->selected_piece);
+        if (peca >= 0) {
+            bool aliada = true;
+            if (peca == UI_ROOK || peca == UI_KNIGHT || peca == UI_PAWN) {
+                aliada = false;
+            }
+            UiDrawPiece(peca, aliada, rect(sq.x+tile*.08f,sq.y+tile*.08f,tile*.84f,tile*.84f),1);
+        }
     }
+    desenhar_movimentos_possiveis(state, bx, by, tile);
     DrawRectangleLinesEx(rect(bx-3,by-3,board+6,board+6),3,UI_RED);
     UiDrawText("PREVIA DE INTERFACE",38,h-49,12,UI_MUTED);
     UiDrawButton(game_demo(),"SIMULAR DERROTA",hovered(game_demo()));
