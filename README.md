@@ -25,7 +25,7 @@ O projeto já possui uma partida jogável em raylib, com combate por turnos, car
 
 O jogador começa com peão, torre, bispo, cavalo ou rei. A cada rodada, escolhe uma melhoria entre três cartas sorteadas para tipos de peça que possui. Melhorias aliadas afetam todas as unidades daquele tipo e não se repetem.
 
-Nas rodadas pares, uma opção permite recrutar outra peça, respeitando a capacidade de colocação. Após escolher a recompensa, o jogador posiciona as novas unidades em casas livres das duas primeiras fileiras do seu lado. A origem escolhida permanece registrada durante a run. O combate usa movimento normal e os sobreviventes retornam às origens entre rodadas, conforme a proposta do plano.
+Nas rodadas pares, uma opção permite recrutar outra peça, respeitando a capacidade de colocação. Após escolher a recompensa, o jogador posiciona as novas unidades em casas livres das duas primeiras fileiras do seu lado. A origem escolhida permanece registrada durante a run. O combate usa movimento normal; todas as peças aliadas, inclusive as capturadas, retornam às suas origens ao iniciar a próxima rodada após uma vitória.
 
 O inimigo começa com três peças. Da segunda rodada em diante, um sorteio aumenta a quantidade de unidades ou o orçamento de melhorias; a composição é sorteada novamente. A cada cinco rodadas, uma unidade vira um rei sem melhorias, que só pode ser capturado por último. Nessas rodadas, o jogador recebe cinco opções de cartas. Rainhas inimigas não recebem melhorias.
 
@@ -98,7 +98,7 @@ O fluxo atual inclui escolha da peça, posicionamento inicial, escolha da recomp
 - Uma rodada termina com a eliminação de uma equipe. Quando ambas ficam sem ações, a partida termina em derrota.
 - O estado de combate usa uma matriz de índices e listas encadeadas por índices para as unidades ativas e registros de captura da rodada. Os totais acumulados de capturas permanecem durante toda a run. A lista encadeada original de inimigos continua sendo usada para gerar as rodadas.
 
-Para incluir arte depois, coloque uma fonte em `assets/fonts/ui.ttf` e sprites PNG em `assets/pieces/white_pawn.png`, `black_pawn.png` etc. Os tipos aceitos são `pawn`, `rook`, `bishop`, `knight`, `king` e `queen`, com prefixo `white_` ou `black_`. Se um arquivo faltar, a peça é desenhada por código; a fonte padrão da raylib também serve como reserva.
+Os 12 sprites principais das peças estão em `sprites/`, com versões brancas e pretas para cada tipo. São carregados ao iniciar o jogo. Se um sprite estiver ausente ou não puder ser carregado, o jogo usa o recurso alternativo em `assets/pieces/white_pawn.png`, `black_pawn.png` etc., quando disponível; caso contrário, mantém a peça desenhada por código. Os tipos aceitos nesse caminho alternativo são `pawn`, `rook`, `bishop`, `knight`, `king` e `queen`, com prefixo `white_` ou `black_`. A fonte opcional em `assets/fonts/ui.ttf` também possui a fonte padrão da raylib como reserva.
 
 A interface foi compilada e aberta neste macOS. Linux e Windows ainda precisam ser conferidos nas máquinas do grupo.
 

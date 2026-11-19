@@ -11,13 +11,44 @@ static Font font;
 static bool customFont;
 static Texture2D sprites[2][6];
 static bool spriteReady[2][6];
-static const char *pieceNames[6] = {"pawn", "rook", "bishop", "knight", "king", "queen"};
+static Rectangle spriteSources[2][6];
+static const char *const pieceNames[6] = {"pawn", "rook", "bishop", "knight", "king", "queen"};
+static const char *const spritePaths[2][6] = {
+    {
+        [UI_PAWN] = "sprites/PeaoPreto Background Removed.png",
+        [UI_ROOK] = "sprites/TorrePreta Background Removed.png",
+        [UI_BISHOP] = "sprites/BispoPreto Background Removed.png",
+        [UI_KNIGHT] = "sprites/CavaloPreto Background Removed.png",
+        [UI_KING] = "sprites/ReiPreto Background Removed.png",
+        [UI_QUEEN] = "sprites/RainhaPreta Background Removed.png",
+    },
+    {
+        [UI_PAWN] = "sprites/PeaoBranco Background Removed.png",
+        [UI_ROOK] = "sprites/TorreBranca Background Removed.png",
+        [UI_BISHOP] = "sprites/BispoBranco Background Removed.png",
+        [UI_KNIGHT] = "sprites/CavaloBranco Background Removed.png",
+        [UI_KING] = "sprites/ReiBranco Background Removed.png",
+        [UI_QUEEN] = "sprites/RainhaBranca Background Removed.png",
+    },
+};
 
 static Color faded(Color color, float alpha) {
     if (alpha < 0) alpha = 0;
     if (alpha > 1) alpha = 1;
     color.a = (unsigned char)(color.a * alpha);
     return color;
+}
+
+static bool loadSprite(const char *path, Texture2D *sprite) {
+    if (!FileExists(path)) return false;
+    Texture2D texture = LoadTexture(path);
+    if (texture.id == 0 || texture.width <= 0 || texture.height <= 0) {
+        if (texture.id != 0) UnloadTexture(texture);
+        return false;
+    }
+    SetTextureFilter(texture, TEXTURE_FILTER_BILINEAR);
+    *sprite = texture;
+    return true;
 }
 
 void UiInit(void) {
@@ -29,12 +60,20 @@ void UiInit(void) {
     if (!customFont) font = GetFontDefault();
     for (int side = 0; side < 2; side++) {
         for (int type = 0; type < 6; type++) {
-            char path[128];
-            snprintf(path, sizeof path, "assets/pieces/%s_%s.png", side ? "white" : "black", pieceNames[type]);
-            spriteReady[side][type] = FileExists(path);
+            spriteReady[side][type] = loadSprite(spritePaths[side][type], &sprites[side][type]);
+            bool primary = spriteReady[side][type];
+            if (!spriteReady[side][type]) {
+                char path[128];
+                snprintf(path, sizeof path, "assets/pieces/%s_%s.png", side ? "white" : "black", pieceNames[type]);
+                spriteReady[side][type] = loadSprite(path, &sprites[side][type]);
+            }
             if (spriteReady[side][type]) {
-                sprites[side][type] = LoadTexture(path);
-                spriteReady[side][type] = sprites[side][type].id != 0;
+                Texture2D texture = sprites[side][type];
+                // A mesma margem para os PNGs de 512px preserva o alinhamento das bases.
+                if (primary && texture.width == 512 && texture.height == 512)
+                    spriteSources[side][type] = (Rectangle){32, 32, 448, 448};
+                else
+                    spriteSources[side][type] = (Rectangle){0, 0, (float)texture.width, (float)texture.height};
             }
         }
     }
@@ -42,8 +81,11 @@ void UiInit(void) {
 
 void UiUnload(void) {
     for (int side = 0; side < 2; side++)
-        for (int type = 0; type < 6; type++)
+        for (int type = 0; type < 6; type++) {
             if (spriteReady[side][type]) UnloadTexture(sprites[side][type]);
+            sprites[side][type] = (Texture2D){0};
+            spriteReady[side][type] = false;
+        }
     if (customFont) UnloadFont(font);
 }
 
@@ -81,7 +123,14 @@ void UiDrawPiece(int type, bool white, Rectangle bounds, float alpha) {
     if (type < 0 || type > 5) return;
     if (spriteReady[white ? 1 : 0][type]) {
         Texture2D texture = sprites[white ? 1 : 0][type];
-        DrawTexturePro(texture, (Rectangle){0, 0, (float)texture.width, (float)texture.height}, bounds, (Vector2){0, 0}, 0, faded(WHITE, alpha));
+        Rectangle source = spriteSources[white ? 1 : 0][type];
+        float scaleX = bounds.width / source.width;
+        float scaleY = bounds.height / source.height;
+        float scale = scaleX < scaleY ? scaleX : scaleY;
+        float width = source.width * scale, height = source.height * scale;
+        Rectangle dest = {bounds.x + (bounds.width - width) / 2,
+                          bounds.y + (bounds.height - height) / 2, width, height};
+        DrawTexturePro(texture, source, dest, (Vector2){0, 0}, 0, faded(WHITE, alpha));
         return;
     }
     float cx = bounds.x + bounds.width / 2;

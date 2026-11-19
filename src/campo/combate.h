@@ -6,8 +6,14 @@
 #define TIPOS_PECA 6
 #define CARTAS_TIPO 10
 #define MAX_ACOES 4096
+#define MAX_ETAPAS_MOVIMENTO 16
 
 typedef struct { int l, c; } Casa;
+/* Trajeto visual da última ação, indexado pela unidade (inclusive reações). */
+typedef struct {
+    int n;
+    Casa casas[MAX_ETAPAS_MOVIMENTO + 1];
+} TrajetoMovimento;
 typedef struct {
     char tipo, original;
     int lado; /* 0 aliado, 1 inimigo */
@@ -40,6 +46,7 @@ typedef struct {
     int capturas[2][TIPOS_PECA];
     RegistroCaptura historicoRodada[40];
     int primeiraCaptura, quantidadeCapturas;
+    TrajetoMovimento trajetos[40];
 } Combate;
 
 typedef struct {

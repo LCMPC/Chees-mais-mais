@@ -195,6 +195,50 @@ static Casa casa_mouse(const GameState *state) {
                   (int)((mouse.x-layout.x)/layout.tile)};
 }
 
+static bool animando(const GameState *state) {
+    return state->animacao_tempo < state->animacao_duracao;
+}
+
+static void iniciar_animacao(GameState *state, int ator_arrastado) {
+    const Combate *j = &state->combate;
+    state->animacao_tempo = state->animacao_duracao = 0;
+    state->ator_arrastado = ator_arrastado;
+    if (ator_arrastado >= 0) {
+        LayoutTabuleiro layout = layout_tabuleiro(state);
+        Vector2 mouse = GetMousePosition();
+        state->origem_arrastada = (Vector2){(mouse.x-layout.x)/layout.tile-.5f,
+                                          (mouse.y-layout.y)/layout.tile-.5f};
+    }
+    for (int u = 0; u < 40; ++u) {
+        const TrajetoMovimento *t = &j->trajetos[u];
+        if (t->n < 2) continue;
+        float duracao = 0;
+        for (int i = 1; i < t->n; ++i) {
+            float dl = (float)(t->casas[i].l-t->casas[i-1].l);
+            float dc = (float)(t->casas[i].c-t->casas[i-1].c);
+            duracao += minimum(.34f,.14f+.045f*sqrtf(dl*dl+dc*dc));
+        }
+        if (u == ator_arrastado && t->n == 2) duracao = .15f;
+        if (duracao > state->animacao_duracao) state->animacao_duracao = duracao;
+    }
+}
+
+static Rectangle casa_animada(const GameState *state, LayoutTabuleiro layout, int u) {
+    const TrajetoMovimento *t = &state->combate.trajetos[u];
+    if (!animando(state) || t->n < 2)
+        return casa_rect(layout,posicao(&state->combate,u));
+    float etapa = state->animacao_tempo/state->animacao_duracao*(t->n-1);
+    int indice = (int)etapa;
+    if (indice >= t->n-1) return casa_rect(layout,t->casas[t->n-1]);
+    float f = etapa-indice;
+    f = f*f*(3-2*f); /* aceleração e desaceleração suaves */
+    Vector2 a = {(float)t->casas[indice].c,(float)t->casas[indice].l};
+    Casa b = t->casas[indice+1];
+    if (indice == 0 && u == state->ator_arrastado) a = state->origem_arrastada;
+    return rect(layout.x+(a.x+(b.c-a.x)*f)*layout.tile,
+                layout.y+(a.y+(b.l-a.y)*f)*layout.tile,layout.tile,layout.tile);
+}
+
 static void limpar_selecao(GameState *state) {
     state->selecionada = -1;
     state->arrastando = false;
@@ -247,6 +291,8 @@ static void preparar_recompensa(GameState *state) {
 
 static void iniciar_run(GameState *state) {
     iniciarCombate(&state->combate, PIECE_TYPES[state->selected_piece]);
+    state->animacao_tempo = state->animacao_duracao = 0;
+    state->recompensa_apos_animacao = false;
     state->round = state->combate.rodada;
     state->screen = SCREEN_GAME;
     state->fase = FASE_POSICAO_INICIAL;
@@ -321,7 +367,9 @@ static Rectangle opcao_rect(int i) {
 
 static void confirmar_acao(GameState *state, Acao acao) {
     int ator = acao.ator;
+    state->antes_animacao = state->combate;
     if (executarAcao(&state->combate, acao)) {
+        iniciar_animacao(state,IsMouseButtonReleased(MOUSE_BUTTON_LEFT) ? ator : -1);
         state->passes = 0;
         limpar_selecao(state);
         if (promocaoPendente(&state->combate) < 0 &&
@@ -507,6 +555,15 @@ static bool update_painel(GameState *state, bool enemy) {
 
 static void update_game(GameState *state) {
     Combate *j = &state->combate;
+    if (animando(state)) {
+        state->animacao_tempo += GetFrameTime();
+        if (animando(state)) return;
+        if (state->recompensa_apos_animacao) {
+            state->recompensa_apos_animacao = false;
+            preparar_recompensa(state);
+        }
+        return;
+    }
     int promovendo = promocaoPendente(j);
     if (state->fase == FASE_COMBATE && promovendo >= 0) {
         if (j->unidades[promovendo].lado) escolherPromocao(j,promovendo,'D');
@@ -547,10 +604,14 @@ static void update_game(GameState *state) {
         if (state->fase == FASE_POSICAO_INICIAL) {
             for (int u = 0; u < 40; ++u) {
                 if (!j->unidades[u].vivo || j->unidades[u].lado != 0) continue;
+                state->antes_animacao = *j;
+                memset(j->trajetos,0,sizeof j->trajetos);
                 if (!igualCasa(posicao(j,u), p) && !deslocar(j,u,p)) return;
                 j->unidades[u].origem = p;
                 j->unidades[u].moveu = 0;
-                preparar_recompensa(state);
+                iniciar_animacao(state,-1);
+                if (animando(state)) state->recompensa_apos_animacao = true;
+                else preparar_recompensa(state);
                 return;
             }
         } else if (vazio(j,p) && recrutar(j, state->recruta, p)) {
@@ -569,7 +630,11 @@ static void update_game(GameState *state) {
         return;
     }
     if (j->lado == 1) {
-        if (acaoInimiga(j)) state->passes = 0;
+        state->antes_animacao = *j;
+        if (acaoInimiga(j)) {
+            state->passes = 0;
+            iniciar_animacao(state,-1);
+        }
         else if (++state->passes >= 2) state->screen = SCREEN_DEFEAT;
         limpar_selecao(state);
         return;
@@ -911,6 +976,22 @@ static void draw_promocao(const GameState *state, int unidade) {
                        p.y+p.height-24,12,UI_MUTED);
 }
 
+static void draw_unidade(const Unidade *unidade, Rectangle sq, float alpha, bool sprite) {
+    if (sprite)
+        UiDrawPiece(tipo_ui(unidade->tipo),unidade->lado==0,
+                    rect(sq.x+sq.width*.08f,sq.y+sq.height*.08f,
+                         sq.width*.84f,sq.height*.84f),alpha);
+    if (alpha < 1 || !sprite) return;
+    if (unidade->chefe || unidade->duplo || unidade->guarda || unidade->gambito ||
+        unidade->silencio || unidade->marca || unidade->herdeira) {
+        const char *badge = unidade->chefe ? "CHEFE" : unidade->duplo ? "2X" :
+            unidade->guarda ? "GUARDA" : unidade->gambito ? "GAMBITO" :
+            unidade->silencio ? "SILENCIO" : unidade->marca ? "MARCA" : "HERDEIRA";
+        DrawRectangleRec(rect(sq.x,sq.y+sq.height-15,sq.width,15),UI_BLACK);
+        UiDrawTextCentered(badge,sq.x+sq.width*.5f,sq.y+sq.height-13,9,UI_RED);
+    }
+}
+
 static void draw_game(const GameState *state) {
     if (state->fase == FASE_RECOMPENSA || state->fase == FASE_RECRUTAR) {
         draw_recompensa(state);
@@ -924,7 +1005,8 @@ static void draw_game(const GameState *state) {
     frame_title(titulo);
     bool posicionando = state->fase == FASE_POSICAO_INICIAL || state->fase == FASE_POSICIONAR;
     int promovendo = promocaoPendente(j);
-    const char *status = posicionando ? "ESCOLHA UMA CASA NAS DUAS FILEIRAS INFERIORES" :
+    const char *status = animando(state) ? "MOVIMENTANDO..." :
+        posicionando ? "ESCOLHA UMA CASA NAS DUAS FILEIRAS INFERIORES" :
         promovendo >= 0 ? "PROMOCAO DE PEAO" :
         j->lado ? "TURNO INIMIGO - IA" : "TURNO ALIADO";
     UiDrawTextCentered(status,w*.5f,78,15,UI_RED);
@@ -951,22 +1033,6 @@ static void draw_game(const GameState *state) {
             }
             if (legal) DrawRectangleRec(sq,(Color){206,41,49,90});
             if (j->selada[l][c]) DrawRectangleLinesEx(sq,3,UI_RED);
-            int u = ocupante(j,p);
-            if (u >= 0) {
-                const Unidade *unidade = &j->unidades[u];
-                if (!state->arrastando || u != state->selecionada)
-                    UiDrawPiece(tipo_ui(unidade->tipo),unidade->lado==0,
-                                rect(sq.x+layout.tile*.08f,sq.y+layout.tile*.08f,
-                                     layout.tile*.84f,layout.tile*.84f),1);
-                if (unidade->chefe || unidade->duplo || unidade->guarda || unidade->gambito ||
-                    unidade->silencio || unidade->marca || unidade->herdeira) {
-                    const char *badge = unidade->chefe ? "CHEFE" : unidade->duplo ? "2X" :
-                        unidade->guarda ? "GUARDA" : unidade->gambito ? "GAMBITO" :
-                        unidade->silencio ? "SILENCIO" : unidade->marca ? "MARCA" : "HERDEIRA";
-                    DrawRectangleRec(rect(sq.x,sq.y+sq.height-15,sq.width,15),UI_BLACK);
-                    UiDrawTextCentered(badge,sq.x+sq.width*.5f,sq.y+sq.height-13,9,UI_RED);
-                }
-            }
             if (legal || igualCasa(origem,p)) DrawRectangleLinesEx(sq,igualCasa(origem,p)?3:1.5f,UI_RED);
             if (hovered(sq)) DrawRectangleLinesEx(sq,1,UI_WHITE);
             if (l == 4) {
@@ -977,6 +1043,27 @@ static void draw_game(const GameState *state) {
                 char label[] = {(char)('5'-l),'\0'};
                 UiDrawText(label,sq.x+3,sq.y+2,10,UI_MUTED);
             }
+        }
+    }
+    /* Primeiro todas as casas; depois as peças, com as móveis por cima. */
+    for (int u = 0; u < 40; ++u) {
+        if (!j->unidades[u].vivo || (animando(state) && j->trajetos[u].n >= 2)) continue;
+        draw_unidade(&j->unidades[u],casa_rect(layout,posicao(j,u)),1,
+                     !state->arrastando || u != state->selecionada);
+    }
+    if (animando(state)) {
+        float progresso = state->animacao_tempo/state->animacao_duracao;
+        float alpha = minimum(1,2*(1-progresso));
+        for (int u = 0; u < 40; ++u) {
+            if (j->unidades[u].vivo || !state->antes_animacao.unidades[u].vivo) continue;
+            Rectangle sq = j->trajetos[u].n >= 2 ? casa_animada(state,layout,u) :
+                casa_rect(layout,posicao(&state->antes_animacao,u));
+            if (dentro(&state->antes_animacao,posicao(&state->antes_animacao,u)))
+                draw_unidade(&state->antes_animacao.unidades[u],sq,alpha,true);
+        }
+        for (int u = 0; u < 40; ++u) {
+            if (j->unidades[u].vivo && j->trajetos[u].n >= 2)
+                draw_unidade(&j->unidades[u],casa_animada(state,layout,u),1,true);
         }
     }
     DrawRectangleLinesEx(rect(layout.x-3,layout.y-3,layout.largura+6,layout.altura+6),3,UI_RED);
@@ -996,9 +1083,10 @@ static void draw_game(const GameState *state) {
                    24,h-40,11,UI_MUTED);
         UiDrawText("CLIQUE NAS REACOES [ON]/[OFF] PARA ATIVAR OU DESATIVAR. ROLE O PAINEL PARA VER MAIS.",
                    24,h-23,10,UI_MUTED);
-        if (promovendo < 0 && !tem_acao_no_turno(j))
+        if (!animando(state) && promovendo < 0 && !tem_acao_no_turno(j))
             UiDrawButton(passar_rect(),"PASSAR",hovered(passar_rect()));
     }
+    if (animando(state)) return;
     if (promovendo >= 0) draw_promocao(state,promovendo);
     else if (state->quantidade_opcoes > 0) draw_opcoes(state);
 }

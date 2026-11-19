@@ -44,6 +44,11 @@ typedef struct {
     int carta_opcoes; /* -1: escolha da carta; >=0: variantes da carta */
     int primeira_opcao;
     int passes;
+    float animacao_tempo, animacao_duracao;
+    Combate antes_animacao;
+    int ator_arrastado;
+    Vector2 origem_arrastada; /* coordenadas fracionárias em casas */
+    bool recompensa_apos_animacao;
 } GameState;
 
 void UpdateCurrentScreen(GameState *state);

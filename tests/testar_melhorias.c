@@ -379,6 +379,10 @@ static void testarTorre(void) {
     agir(&j, torre, 4, (Casa){3, 3});
     assert(igualCasa(posicao(&j, torre), (Casa){3, 0}));
     assert(igualCasa(posicao(&j, peao), (Casa){3, 1}));
+    assert(j.trajetos[torre].n == 0);
+    assert(j.trajetos[peao].n == 2);
+    assert(igualCasa(j.trajetos[peao].casas[0], (Casa){3, 3}));
+    assert(igualCasa(j.trajetos[peao].casas[1], (Casa){3, 1}));
 
     iniciarCenario(&j, 5);
     torre = unidade(&j, 'T', 0, 4, 0);
@@ -396,6 +400,10 @@ static void testarTorre(void) {
     agirComExtra(&j, torre, 7, (Casa){1, 0}, (Casa){3, 0}, ausente);
     confirmarPosicao(&j, torre, 3, 0);
     assert(!j.unidades[alvo].vivo && usouCarta(&j, torre, 7));
+    assert(j.trajetos[torre].n == 3);
+    assert(igualCasa(j.trajetos[torre].casas[0], (Casa){4, 0}));
+    assert(igualCasa(j.trajetos[torre].casas[1], (Casa){1, 0}));
+    assert(igualCasa(j.trajetos[torre].casas[2], (Casa){3, 0}));
 
     iniciarCenario(&j, 5);
     torre = unidade(&j, 'T', 0, 4, 0);
@@ -404,6 +412,9 @@ static void testarTorre(void) {
     agir(&j, torre, 8, (Casa){4, 3});
     confirmarPosicao(&j, rei, 4, 0);
     confirmarPosicao(&j, torre, 4, 3);
+    assert(j.trajetos[torre].n == 2 && j.trajetos[rei].n == 2);
+    assert(igualCasa(j.trajetos[torre].casas[0], j.trajetos[rei].casas[1]));
+    assert(igualCasa(j.trajetos[torre].casas[1], j.trajetos[rei].casas[0]));
 
     iniciarCenario(&j, 5);
     torre = unidade(&j, 'T', 0, 2, 2);
@@ -418,6 +429,11 @@ static void testarTorre(void) {
     agirComExtra(&j, torre, 14, (Casa){1, 2}, (Casa){4, 2}, (Casa){2, 2});
     confirmarPosicao(&j, torre, 1, 2);
     confirmarPosicao(&j, peao, 2, 2);
+    assert(j.trajetos[torre].n == 2 && j.trajetos[peao].n == 2);
+    assert(igualCasa(j.trajetos[torre].casas[0], (Casa){3, 2}));
+    assert(igualCasa(j.trajetos[torre].casas[1], (Casa){1, 2}));
+    assert(igualCasa(j.trajetos[peao].casas[0], (Casa){4, 2}));
+    assert(igualCasa(j.trajetos[peao].casas[1], (Casa){2, 2}));
 
     iniciarCenario(&j, 5);
     torre = unidade(&j, 'T', 0, 4, 2);
@@ -960,6 +976,76 @@ static void testarTransicaoDeRodada(void) {
     verificarTabuleiro(&j);
 }
 
+static void testarRetornoAliadosCapturados(void) {
+    Combate j;
+    iniciarCombate(&j, 'P');
+    int peao = ocupante(&j, (Casa){4, 2});
+    assert(recrutar(&j, 'P', (Casa){4, 0}));
+    int promovido = ocupante(&j, (Casa){4, 0});
+    assert(recrutar(&j, 'T', (Casa){4, 4}));
+    int sobrevivente = ocupante(&j, (Casa){4, 4});
+    assert(adquirirCarta(&j, buscarCarta('P', 2)));
+    gastarCarta(&j, peao, 2);
+    assert(usouCarta(&j, peao, 2));
+
+    /* As duas formas de promoção devem manter sua duração após a captura. */
+    promover(&j, peao, 'B', 0);
+    promover(&j, promovido, 'D', 1);
+    assert(deslocar(&j, peao, (Casa){3, 2}));
+    assert(deslocar(&j, promovido, (Casa){3, 0}));
+    assert(deslocar(&j, sobrevivente, (Casa){3, 4}));
+
+    int agressor = j.primeira[1] - 1;
+    assert(capturar(&j, agressor, peao));
+    assert(capturar(&j, agressor, promovido));
+    assert(!j.unidades[peao].vivo && !j.unidades[promovido].vivo);
+    assert(contarLado(&j, 0) == 1);
+    confirmarPosicao(&j, peao, -1, -1);
+    confirmarPosicao(&j, promovido, -1, -1);
+    assert(j.quantidadeCapturas == 2);
+    verificarTabuleiro(&j);
+
+    /* Uma unidade morta não pode voltar antes da rodada seguinte nem ter
+     * seu índice ou sua posição inicial apropriados por um recrutamento. */
+    assert(!recrutar(&j, 'C', (Casa){4, 2}));
+    assert(recrutar(&j, 'C', (Casa){4, 1}));
+    int reforco = ocupante(&j, (Casa){4, 1});
+    assert(reforco != peao && reforco != promovido);
+    assert(!j.unidades[peao].vivo && !j.unidades[promovido].vivo);
+    j.unidades[peao].duplo = j.unidades[peao].marca = 1;
+    j.unidades[peao].corredor = (Casa){3, 3};
+    verificarTabuleiro(&j);
+
+    for (int u = 0; u < j.quantidade; ++u)
+        if (j.unidades[u].vivo && j.unidades[u].lado) remover(&j, u);
+    assert(prepararRodada(&j));
+    assert(j.rodada == 2 && contarLado(&j, 0) == 4);
+    confirmarPosicao(&j, peao, 4, 2);
+    confirmarPosicao(&j, promovido, 4, 0);
+    confirmarPosicao(&j, sobrevivente, 4, 4);
+    confirmarPosicao(&j, reforco, 4, 1);
+    assert(j.unidades[peao].tipo == 'P' && j.unidades[promovido].tipo == 'D');
+    assert(temCarta(&j, peao, 2) && !usouCarta(&j, peao, 2));
+    assert(j.unidades[peao].moveu);
+    assert(!j.unidades[peao].duplo && !j.unidades[peao].marca);
+    assert(igualCasa(j.unidades[peao].corredor, ausente));
+    assert(j.quantidadeCapturas == 0 && j.primeiraCaptura == 0);
+    verificarTabuleiro(&j);
+
+    /* Uma segunda captura da mesma peça também dura apenas uma rodada. */
+    agressor = j.primeira[1] - 1;
+    assert(capturar(&j, agressor, peao));
+    assert(!j.unidades[peao].vivo && contarLado(&j, 0) == 3);
+    verificarTabuleiro(&j);
+    for (int u = 0; u < j.quantidade; ++u)
+        if (j.unidades[u].vivo && j.unidades[u].lado) remover(&j, u);
+    assert(prepararRodada(&j));
+    assert(j.rodada == 3 && contarLado(&j, 0) == 4);
+    confirmarPosicao(&j, peao, 4, 2);
+    assert(j.unidades[peao].tipo == 'P' && temCarta(&j, peao, 2));
+    verificarTabuleiro(&j);
+}
+
 static void testarCombinacoes(void) {
     /* Exercita a API de geração e execução em tabuleiros lotados com várias
      * cartas adquiridas, inclusive capturas, reações e ações com múltiplas
@@ -1057,6 +1143,9 @@ static void testarIASeAproximaDoJogador(void) {
     Casa posicaoSegundo = posicao(&segundo, inimigoP);
     assert(igualCasa(posicaoPrimeiro, posicaoSegundo));
     assert(posicaoPrimeiro.l > 0);
+    assert(primeiro.trajetos[inimigoP].n == 2);
+    assert(igualCasa(primeiro.trajetos[inimigoP].casas[0], (Casa){0, 0}));
+    assert(igualCasa(primeiro.trajetos[inimigoP].casas[1], posicaoPrimeiro));
     verificarTabuleiro(&primeiro);
 }
 
@@ -1082,6 +1171,7 @@ int main(void) {
     testarEfeitosTemporarios();
     testarXequeDescoberto();
     testarTransicaoDeRodada();
+    testarRetornoAliadosCapturados();
     testarAcaoIlegal();
     testarIAPriorizaCapturas();
     testarIASeAproximaDoJogador();

@@ -125,11 +125,18 @@ void adicionar(ListaAcoes *lista,int u,int carta,Casa destino,Casa extra,Casa ex
         if(mesmaAcao(nova,lista->itens[i])) return;
     if(lista->n<MAX_ACOES) lista->itens[lista->n++]=nova;
 }
+static void registrarMovimento(Combate *j,int u,Casa origem,Casa destino) {
+    TrajetoMovimento *t=&j->trajetos[u];
+    if(!t->n) t->casas[t->n++]=origem;
+    if(t->n<=MAX_ETAPAS_MOVIMENTO) t->casas[t->n++]=destino;
+    else t->casas[MAX_ETAPAS_MOVIMENTO]=destino;
+}
 int deslocar(Combate *j,int u,Casa p) {
     Casa a=posicao(j,u);
     if(!dentro(j,a)||!vazio(j,p)||j->selada[p.l][p.c]==j->unidades[u].lado+1) return 0;
     j->tab[a.l][a.c]=0;
     j->tab[p.l][p.c]=u+1;
+    registrarMovimento(j,u,a,p);
     j->unidades[u].moveu=1;
     return 1;
 }
@@ -139,6 +146,8 @@ int trocar(Combate *j,int u,int v) {
     if(!dentro(j,a)||!dentro(j,b)||j->selada[a.l][a.c]==j->unidades[v].lado+1
         ||j->selada[b.l][b.c]==j->unidades[u].lado+1) return 0;
     j->tab[a.l][a.c]=v+1; j->tab[b.l][b.c]=u+1;
+    registrarMovimento(j,u,a,b);
+    registrarMovimento(j,v,b,a);
     j->unidades[u].moveu=j->unidades[v].moveu=1;
     return 1;
 }
@@ -264,6 +273,7 @@ void encerrarAcao(Combate *j,int ator) {
 }
 int executarAcaoGerada(Combate *j,Acao a) {
     Combate anterior=*j;
+    memset(j->trajetos,0,sizeof j->trajetos);
     int u=a.ator, v=ocupante(j,a.destino), capturou=0, aplicada=0;
     Casa origem=posicao(j,u);
     char tipo=j->unidades[u].tipo;
@@ -324,9 +334,14 @@ int executarAcao(Combate *j,Acao a) {
     for(int i=0;i<lista.n;i++) if(mesmaAcao(a,lista.itens[i])) {ok=1;break;}
     return ok?executarAcaoGerada(j,a):0;
 }
+/* Uma unidade aliada capturada conserva seu indice, tipo original e origem
+ * ate o fim da run. Os slots de inimigos mortos continuam reutilizaveis. */
+static int aliadoRecrutado(const Unidade *p) {
+    return !p->lado && indiceTipo(p->original)>=0;
+}
 static int inserir(Combate *j,char tipo,int lado,Casa p) {
     if(!vazio(j,p)) return -1;
-    for(int u=0;u<40;u++) if(!j->unidades[u].vivo) {
+    for(int u=0;u<40;u++) if(!j->unidades[u].vivo && !aliadoRecrutado(&j->unidades[u])) {
         j->unidades[u]=(Unidade){.tipo=tipo,.original=tipo,.lado=lado,.origem=p,.vivo=1,.corredor=nenhuma};
         j->unidades[u].proximo=j->primeira[lado];
         j->primeira[lado]=u+1;
@@ -338,7 +353,7 @@ static int inserir(Combate *j,char tipo,int lado,Casa p) {
 }
 int recrutar(Combate *j,char tipo,Casa p) {
     if(indiceTipo(tipo)<0||tipo=='D'||p.l<3||!vazio(j,p)) return 0;
-    for(int u=0;u<40;u++) if(j->unidades[u].vivo&&!j->unidades[u].lado&&igualCasa(j->unidades[u].origem,p)) return 0;
+    for(int u=0;u<40;u++) if(aliadoRecrutado(&j->unidades[u])&&igualCasa(j->unidades[u].origem,p)) return 0;
     return inserir(j,tipo,0,p)>=0;
 }
 static int gerarInimigos(Combate *j) {
@@ -366,6 +381,7 @@ void iniciarCombate(Combate *j,char tipo) {
 int prepararRodada(Combate *j) {
     if(promocaoPendente(j)>=0) return 0;
     Combate anterior=*j;
+    memset(j->trajetos,0,sizeof j->trajetos);
     j->rodada++;
     j->largura=5+(j->rodada-1)/5;
     if(j->largura>8) j->largura=8;
@@ -376,16 +392,19 @@ int prepararRodada(Combate *j) {
     memset(j->usadas,0,sizeof j->usadas);
     memset(j->historicoRodada,0,sizeof j->historicoRodada);
     j->primeiraCaptura=j->quantidadeCapturas=0;
-    j->primeira[1]=0;
+    j->primeira[0]=j->primeira[1]=0;
     for(int u=0;u<40;u++) {
         Unidade *p=&j->unidades[u];
         p->promocaoPendente=0;
-        if(p->lado) {p->vivo=0; p->proximo=0;}
-        if(!p->vivo) continue;
+        p->proximo=0;
+        if(!aliadoRecrutado(p)) {p->vivo=0; continue;}
+        p->vivo=1;
         p->tipo=p->original;
         p->capturou=p->duplo=p->guarda=p->silencio=p->marca=p->herdeira=p->gambito=0;
         p->corredor=nenhuma;
         j->tab[p->origem.l][p->origem.c]=u+1;
+        p->proximo=j->primeira[0];
+        j->primeira[0]=u+1;
     }
     j->lado=0; j->bonus=-1;
     if(gerarInimigos(j)) return 1;
