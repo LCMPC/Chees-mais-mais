@@ -1,5 +1,6 @@
 #include "screens.h"
 #include "theme.h"
+#include "../campo/ia.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -508,7 +509,8 @@ static void update_game(GameState *state) {
     Combate *j = &state->combate;
     int promovendo = promocaoPendente(j);
     if (state->fase == FASE_COMBATE && promovendo >= 0) {
-        update_promocao(state,promovendo);
+        if (j->unidades[promovendo].lado) escolherPromocao(j,promovendo,'D');
+        else update_promocao(state,promovendo);
         return;
     }
     if (state->quantidade_opcoes > 0) {
@@ -564,6 +566,12 @@ static void update_game(GameState *state) {
         limpar_selecao(state);
         if (prepararRodada(j)) preparar_recompensa(state);
         else state->screen = SCREEN_DEFEAT;
+        return;
+    }
+    if (j->lado == 1) {
+        if (acaoInimiga(j)) state->passes = 0;
+        else if (++state->passes >= 2) state->screen = SCREEN_DEFEAT;
+        limpar_selecao(state);
         return;
     }
     int inspeccionada = ocupante(j,casa_mouse(state));
@@ -918,7 +926,7 @@ static void draw_game(const GameState *state) {
     int promovendo = promocaoPendente(j);
     const char *status = posicionando ? "ESCOLHA UMA CASA NAS DUAS FILEIRAS INFERIORES" :
         promovendo >= 0 ? "PROMOCAO DE PEAO" :
-        j->lado ? "TURNO INIMIGO - CONTROLE MANUAL" : "TURNO ALIADO";
+        j->lado ? "TURNO INIMIGO - IA" : "TURNO ALIADO";
     UiDrawTextCentered(status,w*.5f,78,15,UI_RED);
     draw_captures(layout.x,layout.y-62,layout.largura,"ALIADOS CAPTURADOS",j,0);
     draw_captures(layout.x,layout.y+layout.altura+7,layout.largura,"INIMIGOS CAPTURADOS",j,1);

@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../src/campo/combate.h"
+#include "../src/campo/ia.h"
 
 static const Casa ausente = {-1, -1};
 
@@ -1029,6 +1029,37 @@ static void testarAcaoIlegal(void) {
     assert(memcmp(&j, &anterior, sizeof j) == 0);
 }
 
+static void testarIAPriorizaCapturas(void) {
+    Combate j;
+    iniciarCenario(&j, 5);
+    int aliado = unidade(&j, 'P', 0, 3, 2);
+    int torre = unidade(&j, 'T', 1, 2, 2);
+    j.lado = 1;
+
+    assert(acaoInimiga(&j));
+    assert(!j.unidades[aliado].vivo);
+    confirmarPosicao(&j, torre, 3, 2);
+    assert(j.lado == 0);
+    verificarTabuleiro(&j);
+}
+
+static void testarIASeAproximaDoJogador(void) {
+    Combate primeiro, segundo;
+    iniciarCenario(&primeiro, 5);
+    int inimigoP = unidade(&primeiro, 'P', 1, 0, 0);
+    unidade(&primeiro, 'P', 0, 4, 2);
+    primeiro.lado = 1;
+    segundo = primeiro;
+
+    assert(acaoInimiga(&primeiro));
+    assert(acaoInimiga(&segundo));
+    Casa posicaoPrimeiro = posicao(&primeiro, inimigoP);
+    Casa posicaoSegundo = posicao(&segundo, inimigoP);
+    assert(igualCasa(posicaoPrimeiro, posicaoSegundo));
+    assert(posicaoPrimeiro.l > 0);
+    verificarTabuleiro(&primeiro);
+}
+
 int main(void) {
     srand(42);
     testarCatalogo();
@@ -1052,6 +1083,8 @@ int main(void) {
     testarXequeDescoberto();
     testarTransicaoDeRodada();
     testarAcaoIlegal();
+    testarIAPriorizaCapturas();
+    testarIASeAproximaDoJogador();
     testarCombinacoes();
     puts("Testes de melhorias concluidos com sucesso.");
     return 0;

@@ -93,11 +93,12 @@ int escolherPromocao(Combate *j, int u, char tipo);
 int moverOuCapturar(Combate *j, int u, Casa p);
 void gerarAcoes(const Combate *j, int u, ListaAcoes *lista);
 int executarAcao(Combate *j, Acao a);
+/* Executa uma acao gerada por gerarAcoes sem repetir a validacao. */
+int executarAcaoGerada(Combate *j, Acao a);
 void iniciarCombate(Combate *j, char tipo);
 int prepararRodada(Combate *j);
 int recrutar(Combate *j, char tipo, Casa p);
 void encerrarAcao(Combate *j, int ator);
-int acaoInimiga(Combate *j);
 
 /* Cada modulo gera alternativas explicitas e executa apenas seus IDs.
  * Acoes com carta 0 sao base. Reacoes anteriores/depois da captura retornam

@@ -17,6 +17,7 @@ O projeto já possui uma partida jogável em raylib, com combate por turnos, car
 | `src/campo/movimento.c` e `.h` | Validação geral de movimento, captura e toque do rei |
 | `src/pecas/unidades/*.c` | Regras de movimento de cada tipo de peça |
 | `src/campo/combate.c` e `.h` | Estado da partida, geração e execução de ações, efeitos temporários, capturas e transição de rodadas |
+| `src/campo/ia.c` e `.h` | Escolha de jogadas inimigas, priorizando capturas, segurança e aproximação |
 | `src/pecas/melhorias.c` | Catálogo de 60 cartas, sorteio, aquisição e limites de uso |
 | `src/pecas/unidades/melhorias_*.c` | Regras específicas das melhorias, divididas em peão/cavalo, torre/bispo e rei/rainha |
 
@@ -63,20 +64,34 @@ Consulte o [guia de dependências](docs/DEPENDENCIAS.md) para preparar as máqui
 
 ## Executar o jogo
 
-Na raiz do projeto:
+Na raiz do projeto, em Linux/macOS:
 
 ```sh
 make
 make run
 ```
 
-No Windows com MSYS2/MinGW64, use `mingw32-make` no lugar de `make`. `make clean` limpa a pasta `build`. Execute a partir da raiz para que os recursos opcionais sejam encontrados.
+No Windows, abra o terminal **MSYS2 UCRT64**. Se ainda não tiver as dependências, instale-as uma vez:
 
-O fluxo atual inclui escolha da peça, posicionamento inicial, escolha da recompensa, combate, próxima rodada e derrota. Use mouse, Enter e setas na seleção inicial, e clique ou pressione o número da carta para adquirir uma melhoria. Durante o combate, arraste uma peça ou clique nela e em seu destino. Quando houver alternativas, escolha a ação e seus alvos adicionais no painel. Clique novamente na própria peça para ativar melhorias estacionárias. Escape cancela a seleção ou retorna ao menu. O pódio permanece visualmente reservado para a persistência futura.
+```sh
+pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-raylib mingw-w64-ucrt-x86_64-make
+```
+
+Nesse terminal, entre na pasta do projeto e compile/inicie o jogo:
+
+```sh
+cd "/c/caminho/para/Chees-mais-mais"
+mingw32-make
+mingw32-make run
+```
+
+`make clean` (ou `mingw32-make clean` no Windows) limpa a pasta `build`. Execute a partir da raiz para que os recursos opcionais sejam encontrados.
+
+O fluxo atual inclui escolha da peça, posicionamento inicial, escolha da recompensa, combate, próxima rodada e derrota. Use mouse, Enter e setas na seleção inicial, e clique ou pressione o número da carta para adquirir uma melhoria. Durante o combate, arraste uma peça ou clique nela e em seu destino. Os inimigos agem automaticamente: priorizam capturas, evitam ameaças imediatas e se aproximam das peças aliadas quando não podem capturar. Quando houver alternativas, escolha a ação e seus alvos adicionais no painel. Clique novamente na própria peça para ativar melhorias estacionárias. Escape cancela a seleção ou retorna ao menu. O pódio permanece visualmente reservado para a persistência futura.
 
 ### Regras da implementação atual
 
-- Cada equipe executa uma ação por vez. Durante os testes, o jogador controla aliados e inimigos no respectivo turno, usando os mesmos controles. A IA está desativada. O toque do rei concede uma ação adicional consecutiva ao alvo quando ele agir.
+- Cada equipe executa uma ação por vez. O jogador controla os aliados e a IA controla os inimigos. O toque do rei concede uma ação adicional consecutiva ao alvo quando ele agir.
 - Ao alcançar a última fileira, um peão se promove à escolha do jogador em rainha, torre, bispo ou cavalo até o fim da rodada. Na rodada seguinte, volta a ser peão. As cartas P20 (Coroação) e P21 (Ascensão real) continuam concedendo promoções permanentes.
 - As cartas aliadas pertencem ao tipo de peça. Recrutas herdam as aquisições. Limites por rodada são compartilhados entre aliados do mesmo tipo.
 - Efeitos opcionais de movimento são selecionáveis. Cada melhoria aparece uma vez no menu de ações; quando ela possui múltiplas variantes, os destinos ou alvos são escolhidos em seguida. As reações opcionais podem ser ligadas ou desligadas no painel aliado e escolhem o primeiro alvo elegível quando existem vários.
@@ -99,6 +114,7 @@ src/
     tabuleiro.c / tabuleiro.h
     movimento.c / movimento.h
     combate.c / combate.h
+    ia.c / ia.h
   pecas/
     melhorias.c
     peca.c / peca.h
@@ -110,7 +126,7 @@ tests/
   testar_melhorias.c
 ```
 
-`peca.h` e `pecaInimiga.h` definem as unidades e não dependem do tabuleiro. `tabuleiro.h` usa esses tipos para guardar os ponteiros nas casas. `movimento.h` apresenta as funções de validação e usa o tabuleiro. As regras individuais continuam nos arquivos de cada peça, com um único cabeçalho de movimentos.
+`peca.h` e `pecaInimiga.h` definem as unidades e não dependem do tabuleiro. `tabuleiro.h` usa esses tipos para guardar os ponteiros nas casas. `movimento.h` apresenta as funções de validação e usa o tabuleiro. `ia.h` expõe a decisão da IA, enquanto `ia.c` escolhe e avalia ações usando as regras do combate. As regras individuais continuam nos arquivos de cada peça, com um único cabeçalho de movimentos.
 
 Incluir cabeçalhos `.h`, nunca arquivos `.c`. Os caminhos dos includes são relativos ao arquivo que está incluindo: em `pecas/unidades/`, `../../campo/movimento.h` sobe duas pastas até `src/` e entra em `campo/`.
 

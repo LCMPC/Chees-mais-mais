@@ -262,12 +262,7 @@ void encerrarAcao(Combate *j,int ator) {
     j->bonus=-1;
     j->lado=1-lado;
 }
-int executarAcao(Combate *j,Acao a) {
-    ListaAcoes lista;
-    gerarAcoes(j,a.ator,&lista);
-    int ok=0;
-    for(int i=0;i<lista.n;i++) if(mesmaAcao(a,lista.itens[i])) {ok=1;break;}
-    if(!ok) return 0;
+int executarAcaoGerada(Combate *j,Acao a) {
     Combate anterior=*j;
     int u=a.ator, v=ocupante(j,a.destino), capturou=0, aplicada=0;
     Casa origem=posicao(j,u);
@@ -321,6 +316,13 @@ int executarAcao(Combate *j,Acao a) {
     }
     encerrarAcao(j,u);
     return 1;
+}
+int executarAcao(Combate *j,Acao a) {
+    ListaAcoes lista;
+    gerarAcoes(j,a.ator,&lista);
+    int ok=0;
+    for(int i=0;i<lista.n;i++) if(mesmaAcao(a,lista.itens[i])) {ok=1;break;}
+    return ok?executarAcaoGerada(j,a):0;
 }
 static int inserir(Combate *j,char tipo,int lado,Casa p) {
     if(!vazio(j,p)) return -1;
@@ -388,23 +390,5 @@ int prepararRodada(Combate *j) {
     j->lado=0; j->bonus=-1;
     if(gerarInimigos(j)) return 1;
     *j=anterior;
-    return 0;
-}
-int acaoInimiga(Combate *j) {
-    if(j->lado!=1 || promocaoPendente(j)>=0) return 0;
-    ListaAcoes lista;
-    Acao melhor={0};
-    int valor=-1;
-    for(int u=0;u<40;u++) {
-        gerarAcoes(j,u,&lista);
-        for(int i=0;i<lista.n;i++) {
-            Acao a=lista.itens[i];
-            int v=ocupante(j,a.destino);
-            int nota=rand()%20+(inimigo(j,u,v)?100:0);
-            if(nota>valor) {valor=nota;melhor=a;}
-        }
-    }
-    if(valor>=0) return executarAcao(j,melhor);
-    encerrarAcao(j,-1);
     return 0;
 }
