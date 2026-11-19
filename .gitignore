@@ -2,7 +2,7 @@
 docs/
 tmp/
 build/
-test/
+tests/
 
 *.txt
 *.log
