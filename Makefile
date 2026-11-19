@@ -31,6 +31,8 @@ test:
 	@mkdir -p build
 	$(CC) $(CFLAGS) -Werror tests/testar_melhorias.c src/campo/*.c src/pecas/*.c src/pecas/unidades/*.c -o build/testar_melhorias
 	./build/testar_melhorias
+	$(CC) $(CFLAGS) -Werror tests/testar_ranking.c src/ranking.c src/campo/*.c src/pecas/*.c src/pecas/unidades/*.c -o build/testar_ranking
+	@testdir=$$(mktemp -d) && trap 'rm -f "$$testdir/ranking.txt" "$$testdir/ranking.txt.tmp"; rmdir "$$testdir"' EXIT && (cd "$$testdir" && "$(abspath build/testar_ranking)" --isolated)
 
 clean:
 	rm -rf build

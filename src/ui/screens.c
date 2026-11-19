@@ -1,5 +1,6 @@
 #include "screens.h"
 #include "theme.h"
+#include "start_menu.h"
 #include "../campo/ia.h"
 
 #include <math.h>
@@ -33,16 +34,6 @@ static void frame_title(const char *section) {
     UiDrawText(section, w - 250, 29, 17, UI_MUTED);
 }
 
-static Rectangle start_play(void) {
-    float w = (float)GetScreenWidth(), h = (float)GetScreenHeight();
-    return rect(w * .39f, h * .63f, w * .22f, 51);
-}
-
-static Rectangle start_exit(void) {
-    Rectangle a = start_play();
-    return rect(a.x, a.y + 64, a.width, a.height);
-}
-
 static Rectangle select_left(void) {
     float w = (float)GetScreenWidth(), h = (float)GetScreenHeight();
     return rect(w * .34f, h * .70f, 54, 50);
@@ -60,18 +51,37 @@ static Rectangle select_confirm(void) {
 
 static Rectangle defeat_back(void) {
     float w = (float)GetScreenWidth(), h = (float)GetScreenHeight();
-    return rect(w * .39f, h * .68f, w * .22f, 52);
+    return rect(w * .37f, h * .76f, w * .26f, 52);
 }
 
 static void iniciar_run(GameState *state);
 static void update_game(GameState *state);
 
+static void registrar_run(GameState *state) {
+    RankingEntry entry = { .round = state->round };
+    snprintf(entry.nick, sizeof entry.nick, "%s", state->nick);
+    for (int u = 0; u < state->combate.quantidade; ++u) {
+        const Unidade *p = &state->combate.unidades[u];
+        int t = indiceTipo(p->original);
+        if (!p->lado && t >= 0) ++entry.counts[t];
+    }
+    memcpy(entry.upgrades, state->combate.adquiridas, sizeof entry.upgrades);
+    state->run_rank = 0;
+    if (RankingSaveRun(&state->ranking, &entry)) {
+        for (size_t i = 0; i < state->ranking.count; ++i) {
+            if (strcmp(state->ranking.entries[i].nick, entry.nick) == 0) {
+                state->run_rank = i + 1;
+                break;
+            }
+        }
+    }
+}
+
 void UpdateCurrentScreen(GameState *state) {
     if (!state) return;
     switch (state->screen) {
         case SCREEN_START:
-            if (clicked(start_play()) || IsKeyPressed(KEY_ENTER)) state->screen = SCREEN_SELECT;
-            else if (clicked(start_exit())) state->screen = SCREEN_EXIT;
+            UpdateStartMenu(state);
             break;
         case SCREEN_SELECT:
             if (clicked(select_left()) || IsKeyPressed(KEY_LEFT)) state->selected_piece = (state->selected_piece + 4) % 5;
@@ -81,43 +91,19 @@ void UpdateCurrentScreen(GameState *state) {
             break;
         case SCREEN_GAME:
             update_game(state);
+            if (state->screen == SCREEN_DEFEAT) registrar_run(state);
             break;
         case SCREEN_DEFEAT:
-            if (clicked(defeat_back()) || IsKeyPressed(KEY_ENTER)) state->screen = SCREEN_START;
+            if (clicked(defeat_back()) || IsKeyPressed(KEY_ENTER)) {
+                state->nick[0] = '\0';
+                state->nick_error = 0;
+                state->nick_focus = true;
+                state->ranking_scroll = 0;
+                state->screen = SCREEN_START;
+            }
             break;
         case SCREEN_EXIT: break;
     }
-}
-
-static void draw_start(const GameState *state) {
-    float w = (float)GetScreenWidth(), h = (float)GetScreenHeight();
-    float wave = sinf(state->time * 1.8f) * 5;
-    frame_title("MENU PRINCIPAL");
-    DrawLineEx((Vector2){w*.5f, h*.18f}, (Vector2){w*.5f,h*.25f}, 2, UI_RED);
-    UiDrawTextCentered("CHESS++", w*.5f, h*.34f + wave, minimum(w*.065f, 77), UI_WHITE);
-    UiDrawTextCentered("UM ROGUELIKE DE XADREZ", w*.5f, h*.46f + wave, 18, UI_RED);
-    UiDrawButton(start_play(), "JOGAR", hovered(start_play()));
-    UiDrawButton(start_exit(), "SAIR", hovered(start_exit()));
-
-    Rectangle info = rect(36, h*.34f, w*.19f, h*.34f);
-    UiDrawPanel(info);
-    UiDrawText("A RUN", info.x+18, info.y+17, 17, UI_RED);
-    UiDrawText("Escolha uma peca.", info.x+18, info.y+64, 15, UI_WHITE);
-    UiDrawText("Venca cada rodada.", info.x+18, info.y+96, 15, UI_WHITE);
-    UiDrawText("Evolua seu exercito.", info.x+18, info.y+128, 15, UI_WHITE);
-    DrawLineEx((Vector2){info.x+18,info.y+163},(Vector2){info.x+info.width-18,info.y+163},1,UI_RED);
-    UiDrawText("Cada casa importa.", info.x+18, info.y+179, 13, UI_MUTED);
-
-    Rectangle podium = rect(w*.78f, h*.34f, w*.19f, h*.34f);
-    UiDrawPanel(podium);
-    UiDrawText("PODIO", podium.x+18, podium.y+17, 17, UI_RED);
-    for (int i=0; i<3; ++i) {
-        char line[48];
-        snprintf(line, sizeof line, "%d  ---  RODADA --", i+1);
-        UiDrawText(line, podium.x+18, podium.y+67+i*44, 15, UI_WHITE);
-    }
-    UiDrawText("Em breve", podium.x+18, podium.y+podium.height-39, 13, UI_MUTED);
-    UiDrawTextCentered("ENTER PARA JOGAR", w*.5f, h-35, 13, UI_MUTED);
 }
 
 static void draw_selection(const GameState *state) {
@@ -1094,11 +1080,16 @@ static void draw_game(const GameState *state) {
 static void draw_defeat(const GameState *state) {
     float w=(float)GetScreenWidth(), h=(float)GetScreenHeight();
     frame_title("FIM DA RUN");
-    DrawLineEx((Vector2){w*.5f,h*.25f},(Vector2){w*.5f,h*.34f},3,UI_RED);
-    UiDrawTextCentered("DERROTA",w*.5f,h*.38f,minimum(w*.077f,92),UI_WHITE);
+    DrawLineEx((Vector2){w*.5f,h*.18f},(Vector2){w*.5f,h*.25f},3,UI_RED);
+    UiDrawTextCentered("DERROTA",w*.5f,h*.29f,minimum(w*.077f,92),UI_WHITE);
+    UiDrawTextCentered(state->nick,w*.5f,h*.48f,28,UI_WHITE);
     char round_text[64];
     snprintf(round_text,sizeof round_text,"VOCE CHEGOU A RODADA %02d",state->round);
     UiDrawTextCentered(round_text,w*.5f,h*.57f,20,UI_RED);
+    char place[64];
+    if (state->run_rank) snprintf(place,sizeof place,"RANKING: #%zu",state->run_rank);
+    else snprintf(place,sizeof place,"NAO FOI POSSIVEL SALVAR O RANKING");
+    UiDrawTextCentered(place,w*.5f,h*.64f,20,state->run_rank ? UI_WHITE : UI_RED);
     UiDrawButton(defeat_back(),"VOLTAR AO INICIO",hovered(defeat_back()));
     UiDrawTextCentered("ENTER PARA VOLTAR",w*.5f,h*.92f,13,UI_MUTED);
 }
@@ -1107,7 +1098,7 @@ void DrawCurrentScreen(const GameState *state) {
     if (!state) return;
     ClearBackground(UI_BG);
     switch (state->screen) {
-        case SCREEN_START: draw_start(state); break;
+        case SCREEN_START: DrawStartMenu(state); break;
         case SCREEN_SELECT: draw_selection(state); break;
         case SCREEN_GAME: draw_game(state); break;
         case SCREEN_DEFEAT: draw_defeat(state); break;

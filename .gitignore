@@ -2,7 +2,9 @@
 docs/
 tmp/
 build/
-tests/
+tests/*
+!tests/testar_melhorias.c
+!tests/testar_ranking.c
 
 *.txt
 *.log

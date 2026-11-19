@@ -3,6 +3,7 @@
 
 #include "raylib.h"
 #include "../campo/combate.h"
+#include "../ranking.h"
 
 typedef enum {
     SCREEN_START,
@@ -25,6 +26,12 @@ typedef struct {
     int selected_piece;
     int round;
     float time;
+    Ranking ranking;
+    char nick[RANK_NICK_MAX+1];
+    bool nick_focus;
+    float nick_error;
+    int ranking_scroll;
+    size_t run_rank;
     Combate combate;
     FaseInterface fase;
     const Carta *recompensas[5];

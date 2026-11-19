@@ -10,6 +10,8 @@ O projeto já possui uma partida jogável em raylib, com combate por turnos, car
 | --- | --- |
 | `src/main.c` | Janela raylib e loop do jogo |
 | `src/ui/screens.c` e `.h` | Menu, escolha inicial, cartas, preparação, combate e derrota |
+| `src/ui/start_menu.c` e `.h` | Entrada de nick, ranking rolável e detalhes das runs |
+| `src/ranking.c` e `.h` | Persistência e ordenação do ranking, validação e sorteio de nicks |
 | `src/ui/theme.c` e `.h` | Paleta, componentes e peças desenhadas quando sprites faltam |
 | `src/campo/tabuleiro.c` e `.h` | Matriz de casas com ponteiros; criação, expansão e liberação |
 | `src/pecas/peca.c` e `.h` | Estrutura, criação e lista de peças aliadas |
@@ -53,7 +55,7 @@ Paleta preto e branco com detalhes vermelhos. Tabuleiro no centro, aliados à es
 - C e raylib.
 - Matriz para representar o tabuleiro.
 - Listas encadeadas para peças e registros de capturas.
-- Arquivo para o recorde, com `podio.txt` como nome proposto.
+- Arquivo local `ranking.txt` para o recorde.
 - Makefile para Windows, Linux e macOS.
 
 ## Dependências
@@ -87,7 +89,13 @@ mingw32-make run
 
 `make clean` (ou `mingw32-make clean` no Windows) limpa a pasta `build`. Execute a partir da raiz para que os recursos opcionais sejam encontrados.
 
-O fluxo atual inclui escolha da peça, posicionamento inicial, escolha da recompensa, combate, próxima rodada e derrota. Use mouse, Enter e setas na seleção inicial, e clique ou pressione o número da carta para adquirir uma melhoria. Durante o combate, arraste uma peça ou clique nela e em seu destino. Os inimigos agem automaticamente: priorizam capturas, evitam ameaças imediatas e se aproximam das peças aliadas quando não podem capturar. Quando houver alternativas, escolha a ação e seus alvos adicionais no painel. Clique novamente na própria peça para ativar melhorias estacionárias. Escape cancela a seleção ou retorna ao menu. O pódio permanece visualmente reservado para a persistência futura.
+O fluxo atual inclui entrada de nick, escolha da peça, posicionamento inicial, escolha da recompensa, combate, próxima rodada e derrota. Use mouse, Enter e setas na seleção inicial, e clique ou pressione o número da carta para adquirir uma melhoria. Durante o combate, arraste uma peça ou clique nela e em seu destino. Os inimigos agem automaticamente: priorizam capturas, evitam ameaças imediatas e se aproximam das peças aliadas quando não podem capturar. Quando houver alternativas, escolha a ação e seus alvos adicionais no painel. Clique novamente na própria peça para ativar melhorias estacionárias. Escape cancela a seleção ou retorna ao menu.
+
+### Ranking de runs
+
+Digite um nick único no menu inicial ou deixe o campo vazio para receber um dos 100 nicks temáticos; nomes sorteados repetidos recebem um sufixo numérico disponível. Ao terminar uma run em derrota, o jogo registra o nick, a rodada alcançada, a composição do exército e as melhorias adquiridas. O menu permite rolar o ranking e visualizar as peças e melhorias por tipo ao passar o mouse sobre uma entrada.
+
+Os resultados são ordenados pela maior rodada alcançada, preservando a ordem de registro em caso de empate. `ranking.txt` é gerado na raiz ao registrar a primeira run. Cada registro contém quatro linhas: nick; rodada e quantidades de peças; melhorias agrupadas por tipo; linha vazia. O arquivo é local e não é versionado.
 
 ### Regras da implementação atual
 
@@ -107,8 +115,10 @@ A interface foi compilada e aberta neste macOS. Linux e Windows ainda precisam s
 ```text
 src/
   main.c
+  ranking.c / ranking.h
   ui/
     screens.c / screens.h
+    start_menu.c / start_menu.h
     theme.c / theme.h
   campo/
     tabuleiro.c / tabuleiro.h
@@ -124,6 +134,7 @@ src/
       melhorias_pc.c, melhorias_tb.c, melhorias_rd.c
 tests/
   testar_melhorias.c
+  testar_ranking.c
 ```
 
 `peca.h` e `pecaInimiga.h` definem as unidades e não dependem do tabuleiro. `tabuleiro.h` usa esses tipos para guardar os ponteiros nas casas. `movimento.h` apresenta as funções de validação e usa o tabuleiro. `ia.h` expõe a decisão da IA, enquanto `ia.c` escolhe e avalia ações usando as regras do combate. As regras individuais continuam nos arquivos de cada peça, com um único cabeçalho de movimentos.
