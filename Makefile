@@ -14,7 +14,7 @@ else
   RAYLIB_LIBS ?= $(shell pkg-config --libs raylib) -lm
 endif
 
-.PHONY: all run clean
+.PHONY: all run clean test
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
@@ -26,6 +26,11 @@ build/%.o: src/%.c
 
 run: $(TARGET)
 	./$(TARGET)
+
+test:
+	@mkdir -p build
+	$(CC) $(CFLAGS) -Werror tests/testar_melhorias.c src/campo/*.c src/pecas/*.c src/pecas/unidades/*.c -o build/testar_melhorias
+	./build/testar_melhorias
 
 clean:
 	rm -rf build

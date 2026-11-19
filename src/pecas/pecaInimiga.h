@@ -6,7 +6,7 @@
 typedef struct PecaInimiga {
     char inicial; // P = peao, B = bispo, T = torre, C = cavalo, D = rainha, R = rei
     int posicaoInicial[2]; // [linha][coluna]*
-    int melhorias[MAX_MELHORIAS_INIMIGAS]; // IDs 1 a 10 / zero = vazio
+    int melhorias[MAX_MELHORIAS_INIMIGAS]; // posições 1 a 10 no catálogo do tipo / zero = vazio
     int quantidadeMelhorias;
     int ehChefe; // se a peca é chefe 0 = nao / 1 =  sim
     int jaMoveu;

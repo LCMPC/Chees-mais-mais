@@ -4,29 +4,31 @@ Roguelike tático de xadrez desenvolvido em **C com raylib**, como projeto em gr
 
 ## Estado atual
 
-O projeto está no início da implementação. Há um protótipo visual navegável em raylib, ainda sem combate funcional.
+O projeto já possui uma partida jogável em raylib, com combate por turnos, cartas de melhorias, recrutamento, controle manual dos dois lados e expansão do tabuleiro.
 
 | Arquivo | Responsabilidade / estado |
 | --- | --- |
-| `src/main.c` | Janela raylib e loop das quatro telas |
-| `src/ui/screens.c` e `.h` | Menu, escolha inicial, prévia de jogo e derrota; navegação por mouse e teclado |
+| `src/main.c` | Janela raylib e loop do jogo |
+| `src/ui/screens.c` e `.h` | Menu, escolha inicial, cartas, preparação, combate e derrota |
 | `src/ui/theme.c` e `.h` | Paleta, componentes e peças desenhadas quando sprites faltam |
 | `src/campo/tabuleiro.c` e `.h` | Matriz de casas com ponteiros; criação, expansão e liberação |
 | `src/pecas/peca.c` e `.h` | Estrutura, criação e lista de peças aliadas |
 | `src/pecas/pecaInimiga.c` e `.h` | Geração de inimigos por fase, posicionamento e distribuição de IDs de melhorias |
 | `src/campo/movimento.c` e `.h` | Validação geral de movimento, captura e toque do rei |
 | `src/pecas/unidades/*.c` | Regras de movimento de cada tipo de peça |
-| `src/pecas/melhorias.c` | Reservado para os aprimoramentos |
+| `src/campo/combate.c` e `.h` | Estado da partida, geração e execução de ações, efeitos temporários, capturas e transição de rodadas |
+| `src/pecas/melhorias.c` | Catálogo de 60 cartas, sorteio, aquisição e limites de uso |
+| `src/pecas/unidades/melhorias_*.c` | Regras específicas das melhorias, divididas em peão/cavalo, torre/bispo e rei/rainha |
 
 ## Proposta do jogo
 
 O jogador começa com peão, torre, bispo, cavalo ou rei. A cada rodada, escolhe uma melhoria entre três cartas sorteadas para tipos de peça que possui. Melhorias aliadas afetam todas as unidades daquele tipo e não se repetem.
 
-Nas rodadas pares, uma opção permite recrutar outra peça, respeitando a capacidade de colocação. Após escolher a recompensa, o jogador posiciona as novas unidades em casas livres das duas primeiras fileiras do seu lado. A origem escolhida permanece registrada durante a run. O plano propõe movimento normal no combate e retorno dos sobreviventes às origens entre rodadas; essa interpretação ainda precisa ser confirmada pelo grupo.
+Nas rodadas pares, uma opção permite recrutar outra peça, respeitando a capacidade de colocação. Após escolher a recompensa, o jogador posiciona as novas unidades em casas livres das duas primeiras fileiras do seu lado. A origem escolhida permanece registrada durante a run. O combate usa movimento normal e os sobreviventes retornam às origens entre rodadas, conforme a proposta do plano.
 
 O inimigo começa com três peças. Da segunda rodada em diante, um sorteio aumenta a quantidade de unidades ou o orçamento de melhorias; a composição é sorteada novamente. A cada cinco rodadas, uma unidade vira um rei sem melhorias, que só pode ser capturado por último. Nessas rodadas, o jogador recebe cinco opções de cartas. Rainhas inimigas não recebem melhorias.
 
-Rainhas são obtidas por aprimoramento, cuja regra ainda será definida, e não entram no sorteio comum. Na geração atual, reis comuns ficam disponíveis a partir da fase 10 e podem receber melhorias. Capturar um rei comum não encerra a rodada; apenas o rei identificado como chefe tem a regra de ser capturado por último.
+Rainhas aliadas permanentes são obtidas pelas cartas P20 (Coroação) e P21 (Ascensão real). Peões também podem escolher rainha como promoção temporária durante o combate. As cartas de rainha entram no sorteio quando houver uma rainha aliada viva na escolha de recompensas. Reis comuns e rainhas inimigas ficam disponíveis no sorteio de inimigos a partir da fase 10. A Ascensão real é exclusiva do jogador. Capturar um rei comum não encerra a rodada; apenas o rei identificado como chefe tem a regra de ser capturado por último.
 
 ### Tabuleiro expansível
 
@@ -39,11 +41,11 @@ Dimensões na ordem **largura × altura**:
 | 11 a 15 | 7 × 5 |
 | 16 em diante | 8 × 5 |
 
-A expansão ocorre após vencer o chefe, para a próxima rodada. A altura permanece em cinco linhas. O tabuleiro já permite crescer de cinco até oito colunas; a transição automática entre rodadas ainda será integrada.
+A expansão ocorre após vencer o chefe, para a próxima rodada. A altura permanece em cinco linhas, e a largura cresce automaticamente de cinco até oito colunas.
 
 ### Interface e arte
 
-Paleta preto e branco com detalhes vermelhos. Tabuleiro no centro, aliados à esquerda, inimigos à direita, aliados capturados acima e inimigos capturados abaixo. Sprites e catálogo definitivo de melhorias serão produzidos pelo grupo.
+Paleta preto e branco com detalhes vermelhos. Tabuleiro no centro, aliados à esquerda, inimigos à direita, aliados capturados acima e inimigos capturados abaixo. O catálogo selecionado está no plano v0.5.
 
 ## Requisitos técnicos
 
@@ -59,7 +61,7 @@ Compilador C, raylib, GNU Make e pkg-config (Linux/macOS). O ambiente Windows ve
 
 Consulte o [guia de dependências](docs/DEPENDENCIAS.md) para preparar as máquinas do grupo. Python e bibliotecas usadas para gerar o PDF não são dependências do jogo.
 
-## Executar o protótipo visual
+## Executar o jogo
 
 Na raiz do projeto:
 
@@ -70,7 +72,16 @@ make run
 
 No Windows com MSYS2/MinGW64, use `mingw32-make` no lugar de `make`. `make clean` limpa a pasta `build`. Execute a partir da raiz para que os recursos opcionais sejam encontrados.
 
-O fluxo atual é **Início → Seleção de peça → Jogo → Derrota → Início**. Use mouse, Enter e as setas na seleção; na prévia de jogo, clique em **Simular derrota** ou pressione D. Escape retorna ao início a partir da seleção ou do jogo. Rodada, pódio, peças laterais e capturas são dados visuais de demonstração. Combate e persistência ainda não foram conectados.
+O fluxo atual inclui escolha da peça, posicionamento inicial, escolha da recompensa, combate, próxima rodada e derrota. Use mouse, Enter e setas na seleção inicial, e clique ou pressione o número da carta para adquirir uma melhoria. Durante o combate, arraste uma peça ou clique nela e em seu destino. Quando houver alternativas, escolha a ação e seus alvos adicionais no painel. Clique novamente na própria peça para ativar melhorias estacionárias. Escape cancela a seleção ou retorna ao menu. O pódio permanece visualmente reservado para a persistência futura.
+
+### Regras da implementação atual
+
+- Cada equipe executa uma ação por vez. Durante os testes, o jogador controla aliados e inimigos no respectivo turno, usando os mesmos controles. A IA está desativada. O toque do rei concede uma ação adicional consecutiva ao alvo quando ele agir.
+- Ao alcançar a última fileira, um peão se promove à escolha do jogador em rainha, torre, bispo ou cavalo até o fim da rodada. Na rodada seguinte, volta a ser peão. As cartas P20 (Coroação) e P21 (Ascensão real) continuam concedendo promoções permanentes.
+- As cartas aliadas pertencem ao tipo de peça. Recrutas herdam as aquisições. Limites por rodada são compartilhados entre aliados do mesmo tipo.
+- Efeitos opcionais de movimento são selecionáveis. Cada melhoria aparece uma vez no menu de ações; quando ela possui múltiplas variantes, os destinos ou alvos são escolhidos em seguida. As reações opcionais podem ser ligadas ou desligadas no painel aliado e escolhem o primeiro alvo elegível quando existem vários.
+- Uma rodada termina com a eliminação de uma equipe. Quando ambas ficam sem ações, a partida termina em derrota.
+- O estado de combate usa uma matriz de índices e listas encadeadas por índices para as unidades ativas e registros de captura da rodada. Os totais acumulados de capturas permanecem durante toda a run. A lista encadeada original de inimigos continua sendo usada para gerar as rodadas.
 
 Para incluir arte depois, coloque uma fonte em `assets/fonts/ui.ttf` e sprites PNG em `assets/pieces/white_pawn.png`, `black_pawn.png` etc. Os tipos aceitos são `pawn`, `rook`, `bishop`, `knight`, `king` e `queen`, com prefixo `white_` ou `black_`. Se um arquivo faltar, a peça é desenhada por código; a fonte padrão da raylib também serve como reserva.
 
@@ -87,15 +98,16 @@ src/
   campo/
     tabuleiro.c / tabuleiro.h
     movimento.c / movimento.h
+    combate.c / combate.h
   pecas/
     melhorias.c
     peca.c / peca.h
     pecaInimiga.c / pecaInimiga.h
     unidades/
       peao.c, torre.c, bispo.c, cavalo.c, rei.c, rainha.c
+      melhorias_pc.c, melhorias_tb.c, melhorias_rd.c
 tests/
-  testar_movimento.c
-  testar_inimigos.c
+  testar_melhorias.c
 ```
 
 `peca.h` e `pecaInimiga.h` definem as unidades e não dependem do tabuleiro. `tabuleiro.h` usa esses tipos para guardar os ponteiros nas casas. `movimento.h` apresenta as funções de validação e usa o tabuleiro. As regras individuais continuam nos arquivos de cada peça, com um único cabeçalho de movimentos.
@@ -104,13 +116,10 @@ Incluir cabeçalhos `.h`, nunca arquivos `.c`. Os caminhos dos includes são rel
 
 ## Verificações do motor
 
-Na raiz, depois de criar a pasta `build`, compilar e executar os testes sem abrir a interface:
+Na raiz, compilar e executar os testes sem abrir a interface:
 
-```powershell
-gcc -std=c99 -Wall -Wextra -Werror -pedantic src/campo/movimento.c src/campo/tabuleiro.c src/pecas/unidades/*.c tests/testar_movimento.c -o build/testar_movimento.exe
-./build/testar_movimento.exe
-gcc -std=c99 -Wall -Wextra -Werror -pedantic src/pecas/pecaInimiga.c tests/testar_inimigos.c -o build/testar_inimigos.exe
-./build/testar_inimigos.exe
+```sh
+make test
 ```
 
 ## Ordem de desenvolvimento
@@ -124,6 +133,6 @@ gcc -std=c99 -Wall -Wextra -Werror -pedantic src/pecas/pecaInimiga.c tests/testa
 7. Integrar geração inimiga, chefes, expansão e recorde.
 8. Finalizar arte, interface, balanceamento e compilação nos três sistemas.
 
-O [plano atualizado em PDF](chees_mais_mais_plano_v04.pdf) preserva as 13 páginas anteriores e acrescenta as decisões sobre as quatro telas e os recursos de reserva.
+O [plano atualizado em PDF](PlanoChess++.pdf) (v0.5) inclui as decisões de interface e o catálogo com 60 melhorias escolhidas, distribuídas entre os seis tipos de peça (páginas 15 a 20).
 
-A [documentação da geração inimiga](docs/INIMIGOS.md) explica os contadores, o sorteio, os IDs de melhorias e como chamar as funções. A integração dessa geração ao tabuleiro e ao combate ainda está pendente.
+A geração inimiga utiliza os contadores de dificuldade e as cartas elegíveis do catálogo, respeitando a proteção do chefe.

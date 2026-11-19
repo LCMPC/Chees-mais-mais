@@ -4,11 +4,11 @@
 PecaInimiga *criarPecaInimiga(PecaInimiga ** head, int fase) {
     if (head == NULL || fase < 1) return NULL;
 
-     char tipos[5] = {'P', 'B', 'T', 'C', 'R'};
+    char tipos[6] = {'P', 'B', 'T', 'C', 'R', 'D'};
     int quantidadeTipos = 1;
     if (fase >= 3) quantidadeTipos = 3;
     if (fase >= 5) quantidadeTipos = 4;
-    if (fase >= 10) quantidadeTipos = 5;
+    if (fase >= 10) quantidadeTipos = 6;
 
     PecaInimiga *nova = malloc(sizeof(PecaInimiga));
     if (nova == NULL) return NULL;
@@ -39,8 +39,10 @@ void liberarPecasInimigas(PecaInimiga ** head) {
 }
 
 static int podeReceberMelhoria(PecaInimiga *peca) {
+    /* A décima carta do peão (P21) promove um aliado na aquisição. */
+    int limite = peca->inicial == 'P' ? MAX_MELHORIAS_INIMIGAS - 1 : MAX_MELHORIAS_INIMIGAS;
     return peca->inicial != 'D' && !peca->ehChefe
-        && peca->quantidadeMelhorias < MAX_MELHORIAS_INIMIGAS;
+        && peca->quantidadeMelhorias < limite;
 }
 
 static void sortearMelhoria(PecaInimiga *peca) {
@@ -48,7 +50,8 @@ static void sortearMelhoria(PecaInimiga *peca) {
     int quantidadeDisponiveis = 0;
 
     /* Monta a lista de IDs ainda nao usados por ESTA unidade. */
-    for (int id = 1; id <= MAX_MELHORIAS_INIMIGAS; id++) {
+    int limite = peca->inicial == 'P' ? MAX_MELHORIAS_INIMIGAS - 1 : MAX_MELHORIAS_INIMIGAS;
+    for (int id = 1; id <= limite; id++) {
         int repetida = 0;
         for (int i = 0; i < peca->quantidadeMelhorias; i++) {
             if (peca->melhorias[i] == id) repetida = 1;
