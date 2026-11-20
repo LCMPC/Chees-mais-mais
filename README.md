@@ -114,6 +114,14 @@ Os 12 sprites principais das peças estão em `sprites/`, com versões brancas e
 
 A interface foi compilada e aberta neste macOS. Linux e Windows ainda precisam ser conferidos nas máquinas do grupo.
 
+
+## Vídeo de gameplay
+
+
+https://github.com/user-attachments/assets/f9d98db2-7fc5-4e92-b6db-43487c372753
+
+
+
 ## Organização dos módulos
 
 ```text
