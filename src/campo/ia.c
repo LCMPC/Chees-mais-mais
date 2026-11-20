@@ -41,7 +41,8 @@ static int avaliarAcao(const Combate *j,Acao a) {
 
     int balanco=(material(j,0)-material(&depois,0))
         -(material(j,1)-material(&depois,1));
-    int pontuacao=balanco*100;
+
+    int pontuacao=balanco*70;
     if(!depois.unidades[a.ator].vivo) return pontuacao;
 
     int distanciaAntes=distanciaAliado(j,a.ator);
@@ -51,8 +52,8 @@ static int avaliarAcao(const Combate *j,Acao a) {
     int ameacadoAntes=ameacado(j,a.ator);
     int ameacadoDepois=ameacado(&depois,a.ator);
     int valor=valorPeca(depois.unidades[a.ator].tipo);
-    if(ameacadoDepois && !ameacadoAntes) pontuacao-=valor*100;
-    else if(ameacadoAntes && !ameacadoDepois) pontuacao+=valor*50;
+    if(ameacadoDepois && !ameacadoAntes) pontuacao-=valor*60;
+    else if(ameacadoAntes && !ameacadoDepois) pontuacao+=valor*30;
     return pontuacao;
 }
 

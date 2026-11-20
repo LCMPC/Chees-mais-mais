@@ -385,7 +385,10 @@ int prepararRodada(Combate *j) {
     j->rodada++;
     j->largura=5+(j->rodada-1)/5;
     if(j->largura>8) j->largura=8;
-    if(rand()%2 && j->pecasInimigas<3*j->largura) j->pecasInimigas++;
+    /* Crescimento moderado: melhorias são escolhidas com mais frequência e
+     * o exército cresce até duas vezes a largura mais uma unidade. */
+    int limitePecas=2*j->largura+1;
+    if(rand()%5<2 && j->pecasInimigas<limitePecas) j->pecasInimigas++;
     else j->melhoriasInimigas++;
     memset(j->tab,0,sizeof j->tab);
     memset(j->selada,0,sizeof j->selada);

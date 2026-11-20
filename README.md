@@ -46,6 +46,10 @@ Dimensões na ordem **largura × altura**:
 
 A expansão ocorre após vencer o chefe, para a próxima rodada. A altura permanece em cinco linhas, e a largura cresce automaticamente de cinco até oito colunas.
 
+### Dificuldade da IA
+
+O crescimento inimigo é moderado: a cada rodada, melhorias têm mais chance de ser escolhidas do que novas peças, e o exército possui um limite menor. A IA continua priorizando capturas e segurança, mas avalia material e ameaças com menos peso para não reagir de forma maximamente agressiva.
+
 ### Interface e arte
 
 Paleta preto e branco com detalhes vermelhos. Tabuleiro no centro, aliados à esquerda, inimigos à direita, aliados capturados acima e inimigos capturados abaixo. O catálogo selecionado está no plano v0.5.
